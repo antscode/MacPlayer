@@ -76,9 +76,20 @@ resource 'DLOG' (128, purgeable) {
 	centerMainScreen
 };
 
+
 data 'dctb' (128, purgeable) {
-   $"0000 0000 0000 FFFF"  /*use default colors*/
+	$"FFFF 0000 0000 0000 0000 0000 0000 0000"
 };
+
+// 10-byte code resource stub trick
+data 'LDEF' (128) {
+    $"2F3A 0004 4E75 0000 0000"
+}; 
+
+/* Nasty hack to replace all scroll bars with our own definition - but it works! */
+data 'CDEF' (1) {
+    $"2F3A 0004 4E75 0000 0000"
+}; 
 
 resource 'DITL' (128, purgeable) {
 	{ 
@@ -95,11 +106,11 @@ resource 'DITL' (128, purgeable) {
 resource 'DITL' (129, purgeable) {
 	{ 
 		/* Nav List */
-		{ 10, 15, 200+10, 180+10 },
+		{ 10, 15, 200+10, 100+10 },
 		UserItem { enabled };
 
 		/* Track List */
-		{ 10, 205, 200+10, 205+220 },
+		{ 10, 120, 200+10, 505 },
 		UserItem { enabled };
 
 		/* Play */

@@ -3,6 +3,8 @@
 #include <MacWifi/MacWifiLib.h>
 #include <MacAuth/MacAuth.h>
 #include "Prefs.h"
+#include "DarkListDef.h"
+#include "DarkScrollbarDef.h"
 
 const short mAppleMenu = 128;
 
@@ -42,7 +44,9 @@ void WaitCursor();
 void HandlePlayerContent(short item);
 void GetRecentTracks();
 void SpotifyRequest(string uri, function<void(MacWifiResponse)> onComplete);
+void SpotifyRequest(string uri, function<void(MacWifiResponse)> onComplete, bool refreshed);
 void RefreshAccessToken(string uri, function<void(MacWifiResponse)> onComplete);
+void InitCustomLDEF();
 
 ListHandle _navList, _trackList;
 ListHandle CreateList(

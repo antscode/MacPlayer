@@ -10,14 +10,18 @@
 #include "Util.h"
 #include "Keys.h"
 #include "base64.h"
+#include "gason.hpp"
 
 DialogPtr _dialog;
+
+using namespace gason;
 
 int main()
 {	
 	InitToolBox();
 	MenuInit();
 	EventInit();
+	InitCustomLDEF();
 	ShowMainWindow();
 	EventLoop();
 }
@@ -243,12 +247,25 @@ void HandlePlayerContent(short item)
 	switch (item)
 	{
 		case 1:
-			// Nav List
-			GetMouse(&pt);
-			bool dblClick = LClick(pt, 0, _navList);
-			Cell cell = LLastClick(_navList);
-			short cellIndex = cell.v;
-			GetRecentTracks();
+			{
+				// Nav List
+				GetMouse(&pt);
+				bool dblClick = LClick(pt, 0, _navList);
+				Cell cell = LLastClick(_navList);
+				short cellIndex = cell.v;
+				GetRecentTracks();
+			}
+			break;
+
+		case 2:
+			{
+				// Track List
+				GetMouse(&pt);
+				bool dblClick = LClick(pt, 0, _trackList);
+				Cell cell = LLastClick(_trackList);
+				short cellIndex = cell.v;
+				// TODO: Play track!
+			}
 			break;
 	}
 }
@@ -259,38 +276,67 @@ void GetRecentTracks()
 		"https://api.spotify.com/v1/me/player/recently-played",
 		[=](MacWifiResponse response)
 	{
-		Util::Debug(response.Content);
-
-
 		if (response.Success)
 		{
-			Json::Value root;
-			Json::Reader reader;
+			JsonAllocator    allocator;
+			JsonValue        root;
+			
 			string deviceId, deviceName;
-			bool parseSuccess = reader.parse(response.Content.c_str(), root);
 
 			MenuHandle deviceMenu = GetMenuHandle(130);
 			int itemCount = CountMItems(deviceMenu);
 
-			if (parseSuccess)
+			JsonParseStatus status = jsonParse((char*)response.Content.c_str(), root, allocator);
+			if (status == JSON_PARSE_OK)
 			{
-				Json::Value items = root["items"];
-				Json::Value track;
-				string trackName;
+				JsonValue items = root("items");
+				JsonValue track;
+				JsonValue artists;
 				Cell cell;
+				char* trackName;
+				char* artist;
 
 				int rowNum = (**_trackList).dataBounds.bottom;
 
-				for (int i = 0; i < items.size(); i++)
+				LSetDrawingMode(false, _trackList);
+
+				JsonIterator it = gason::begin(items);
+
+				while (it.isValid())
 				{
-					track = items[i]["track"];
-					trackName = track["name"].asString();
+					JsonValue father = it->value;
+
+					track = father("track");
+					trackName = track("name").toString();
+					artists = track("artists");
+					artist = artists[0]("name").toString();
+
+					char* pLabel = (char*)Util::CtoPStr(trackName);
+					Str255 label;
+					strncpy((char*)label, pLabel, 256);
 
 					rowNum = LAddRow(1, rowNum, _trackList);
 					SetPt(&cell, 0, rowNum);
-					LSetCell(trackName.c_str(), trackName.size(), cell, _trackList);
+					LSetCell(label, sizeof(Str255), cell, _trackList);
+
+					char* pArtist = (char*)Util::CtoPStr(artist);
+					Str255 artist255;
+					strncpy((char*)artist255, pArtist, 256);
+
+					SetPt(&cell, 1, rowNum);
+					LSetCell(artist255, sizeof(Str255), cell, _trackList);
+
 					rowNum = rowNum + 1;
+					it++;
 				}
+
+				LSetDrawingMode(true, _trackList);
+				InvalRect(&(**_trackList).rView);
+
+				if((**_trackList).vScroll != NULL)
+					InvalRect(&(**(**_trackList).vScroll).contrlRect);
+
+				LUpdate(_dialog->visRgn, _trackList);
 			}
 		}
 		else
@@ -377,7 +423,6 @@ void ModeLogin(DialogPtr dialog)
 	AppendDITL(dialog, ditl, overlayDITL);
 	ReleaseResource(ditl);
 
-	MacFillRect(&dialog->portRect, &qd.black);
 	UpdateDialog(dialog, dialog->visRgn);
 }
 
@@ -398,14 +443,13 @@ void ModePlayer(DialogPtr dialog)
 
 	// Init nav list
 	GetDialogItem(dialog, 1, &type, &itemH, &box);
-	_navList = CreateList(dialog, box, 1, 0, 0, 0);
+	_navList = CreateList(dialog, box, 1, 128, 0, 0);
 	PopulateNavList(_navList);
 
 	// Init track list
 	GetDialogItem(dialog, 2, &type, &itemH, &box);
-	_trackList = CreateList(dialog, box, 1, 0, 0, 0);
+	_trackList = CreateList(dialog, box, 2, 128, 0, 0);
 
-	//MacFillRect(&dialog->portRect, &qd.black);
 	UpdateDialog(dialog, dialog->visRgn);
 }
 
@@ -451,12 +495,22 @@ void PopulateNavList(ListHandle list)
 	{
 		rowNum = LAddRow(1, rowNum, list);
 		SetPt(&cell, 0, rowNum);
-		LSetCell(item.c_str(), item.size(), cell, list);
+
+		char* pLabel = (char*)Util::StrToPStr(item);
+		Str255 label;
+		strncpy((char*)label, pLabel, 256);
+
+		LSetCell(label, sizeof(Str255), cell, list);
 		rowNum = rowNum + 1;
 	}
 }
 
 void SpotifyRequest(string uri, function<void(MacWifiResponse)> onComplete)
+{
+	SpotifyRequest(uri, onComplete, false);
+}
+
+void SpotifyRequest(string uri, function<void(MacWifiResponse)> onComplete, bool refreshed)
 {
 	_wifiLib.SetAuthorization("Bearer " + _accessToken);
 	_wifiLib.Get(
@@ -472,8 +526,16 @@ void SpotifyRequest(string uri, function<void(MacWifiResponse)> onComplete)
 				}
 				else if (response.StatusCode == 401)
 				{
-					// Expired access token, so refresh it and try again
-					RefreshAccessToken(uri, onComplete);
+					if (!refreshed)
+					{
+						// Expired access token, so refresh it and try again
+						RefreshAccessToken(uri, onComplete);
+					}
+					else
+					{
+						// Authentication still failing after a refresh, give up
+						// TODO
+					}
 				}
 				else
 				{
@@ -511,7 +573,7 @@ void RefreshAccessToken(string uri, function<void(MacWifiResponse)> onComplete)
 
 					_accessToken = _prefs.Data["access_token"].asString();
 
-					SpotifyRequest(uri, onComplete);
+					SpotifyRequest(uri, onComplete, true);
 				}
 			}
 			else
@@ -608,4 +670,17 @@ pascal OSErr Quit(AppleEvent* appleEvent, AppleEvent* reply, long refCon)
 pascal OSErr ProcessResponseEvent(AppleEvent* appleEvent, AppleEvent* reply, long refCon)
 {
 	_wifiLib.ProcessReply(appleEvent);
+}
+
+void InitCustomLDEF()
+{
+	// 10-byte code resource stub trick
+
+	Handle h = GetResource('LDEF', 128);
+	HLock(h);
+	*(ListDefProcPtr*)(*h + 6) = &DarkListDef;
+
+	Handle h2 = GetResource('CDEF', 1);
+	HLock(h2);
+	*(ControlDefProcPtr*)(*h2 + 6) = &DarkScrollbarDef;
 }

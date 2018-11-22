@@ -8,6 +8,9 @@ add_application(MacPlayer
 	Keys.cpp
 	MacAuth.r
 	base64.cpp
+	DarkListDef.cpp
+	DarkScrollbarDef.cpp
+	gason.cpp
 
 	CREATOR "MPLY"
 )
