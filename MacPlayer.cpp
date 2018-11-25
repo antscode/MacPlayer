@@ -5,16 +5,16 @@
 #include <Menus.h>
 #include <ToolUtils.h>
 #include <string.h>
-#include <json/json.h>
+#include <gason/gason.hpp>
 #include "MacPlayer.h"
 #include "Util.h"
 #include "Keys.h"
-#include "base64.h"
-#include "gason.hpp"
 
 DialogPtr _dialog;
 
 using namespace gason;
+
+string GetTrackImage(JsonValue& track);
 
 int main()
 {	
@@ -42,10 +42,8 @@ void ShowMainWindow()
 	_dialog = GetNewDialog(128, 0, (WindowPtr)-1);
 	MacSetPort(_dialog);
 
-	if (_prefs.Data.isMember("access_token"))
+	if (_spotifyClient.AccessToken.size() > 0)
 	{
-		_accessToken = _prefs.Data["access_token"].asString();
-		_refreshToken = _prefs.Data["refresh_token"].asString();
 		InitPlayer(_dialog);
 	}
 	else
@@ -104,11 +102,6 @@ void EventLoop()
 void DoEvent(EventRecord *eventPtr)
 {
 	char theChar;
-
-	if (_uiState == Login)
-	{
-		_macAuth.HandleEvents(eventPtr);
-	}
 
 	switch (eventPtr->what)
 	{
@@ -232,10 +225,23 @@ void HandleInContent(EventRecord *eventPtr)
 
 void HandleLoginContent(short item)
 {
+	DialogPtr dialog = _dialog;
+
 	switch (item)
 	{
 		case 2:
-			DoLogin();
+			_spotifyClient.Login(
+				[=](LoginResponse response)
+				{
+					if (response.Success)
+					{
+						InitPlayer(dialog);
+					}
+					else
+					{
+						// TODO
+					}
+				});
 			break;
 	}
 }
@@ -252,6 +258,11 @@ void HandlePlayerContent(short item)
 				GetMouse(&pt);
 				bool dblClick = LClick(pt, 0, _navList);
 				Cell cell = LLastClick(_navList);
+
+				Str255 cellDataPtr;
+				short dataLen = sizeof(Str255);
+				LGetCell(cellDataPtr, &dataLen, cell, _navList);
+
 				short cellIndex = cell.v;
 				GetRecentTracks();
 			}
@@ -264,15 +275,59 @@ void HandlePlayerContent(short item)
 				bool dblClick = LClick(pt, 0, _trackList);
 				Cell cell = LLastClick(_trackList);
 				short cellIndex = cell.v;
-				// TODO: Play track!
+
+				if (dblClick)
+				{
+					_currentTrack = _tracks[cellIndex];
+					ViewNowPlaying();
+				}
 			}
 			break;
 	}
 }
 
+void PlayTrack()
+{
+	// TODO
+}
+
+void ViewNowPlaying()
+{
+	HideDialogItem(_dialog, 2);
+	HideControl((**_trackList).vScroll);
+
+	string image = _currentTrack.image;
+
+	if (image != "")
+	{
+		_wifiLib.Utf8ToMacRoman(false);
+		_wifiLib.Get(
+			"https://68k.io/image?ma_client_id=" + Keys::ClientId +
+			"&source_url=" + image +
+			"&dest_width=250&dest_height=250",
+			[=](MacWifiResponse response)
+		{
+			if (response.Success)
+			{
+				vector<char> v(response.Content.begin(), response.Content.end());
+				char* pict = &v[512]; // Skip 512-byte PICT1 header
+
+				PicHandle imageHandle = (PicHandle)&pict;
+
+				Rect pictRect;
+				MacSetRect(&pictRect, 127, 0, 377, 250);
+
+				DrawPicture(imageHandle, &pictRect);
+
+				_wifiLib.Utf8ToMacRoman(true);
+			}
+		});
+	}
+}
+
 void GetRecentTracks()
 {
-	SpotifyRequest(
+	_spotifyClient.Get(
 		"https://api.spotify.com/v1/me/player/recently-played",
 		[=](MacWifiResponse response)
 	{
@@ -298,10 +353,16 @@ void GetRecentTracks()
 
 				int rowNum = (**_trackList).dataBounds.bottom;
 
+				ShowDialogItem(_dialog, 2);
+				ShowControl((**_trackList).vScroll);
+
 				LSetDrawingMode(false, _trackList);
 
 				JsonIterator it = gason::begin(items);
-
+				
+				_tracks.clear();
+				LDelRow(0, 0, _trackList);
+				
 				while (it.isValid())
 				{
 					JsonValue father = it->value;
@@ -326,6 +387,11 @@ void GetRecentTracks()
 					SetPt(&cell, 1, rowNum);
 					LSetCell(artist255, sizeof(Str255), cell, _trackList);
 
+					Track trackObj;
+					trackObj.image = GetTrackImage(track);
+
+					_tracks.push_back(trackObj);
+
 					rowNum = rowNum + 1;
 					it++;
 				}
@@ -346,64 +412,26 @@ void GetRecentTracks()
 	});
 }
 
-void DoLogin()
+string GetTrackImage(JsonValue& track)
 {
-	AuthRequest authRequest;
+	JsonValue album = track.child("album");
 
-	authRequest.ClientId = Keys::ClientId;
-	authRequest.Provider = "spotify";
-
-	authRequest.Params.insert(pair<string, string>("client_id", Keys::SpotifyClientId));
-	authRequest.Params.insert(pair<string, string>("response_type", "code"));
-	authRequest.Params.insert(pair<string, string>("scope", MacWifiLib::Encode("user-read-playback-state user-read-recently-played")));
-
-	// For some reason, accessing a dialog global within a lamba does weird things
-	// but capturing as a local variable works fine
-	DialogPtr dialog = _dialog;
-
-	_macAuth.Authenticate(authRequest, [=](AuthResponse response)
+	if (album.getTag() == JSON_OBJECT)
 	{
-		if (response.Success)
+		JsonValue images = album.child("images");
+
+		if (images.getTag() == JSON_ARRAY)
 		{
-			WaitCursor();
+			JsonValue image = images.at(0);
 
-			// Get access & refresh tokens
-			_wifiLib.Post(
-				"https://accounts.spotify.com/api/token",
-				"client_id=" + Keys::SpotifyClientId +
-				"&client_secret=" + Keys::SpotifyClientSecret +
-				"&grant_type=authorization_code&code=" + response.Code +
-				"&redirect_uri=https://68k.io/login/callback",
-				[=](MacWifiResponse response)
-				{
-					if (response.Success)
-					{
-						Json::Value root;
-						Json::Reader reader;
-						bool parseSuccess = reader.parse(response.Content.c_str(), root);
-
-						if (parseSuccess)
-						{
-							_prefs.Data["access_token"] = root["access_token"].asString();
-							_prefs.Data["refresh_token"] = root["refresh_token"].asString();
-							_prefs.Save();
-
-							_accessToken = _prefs.Data["access_token"].asString();
-							_refreshToken = _prefs.Data["refresh_token"].asString();
-							InitPlayer(dialog);
-						}
-					}
-					else
-					{
-						// TODO
-					}
-				});
+			if (image == JSON_OBJECT)
+			{
+				return string(image.child("url").toString());
+			}
 		}
-		else
-		{
-			// TODO
-		}
-	});
+	}
+
+	return "";
 }
 
 void WaitCursor()
@@ -505,115 +533,47 @@ void PopulateNavList(ListHandle list)
 	}
 }
 
-void SpotifyRequest(string uri, function<void(MacWifiResponse)> onComplete)
-{
-	SpotifyRequest(uri, onComplete, false);
-}
-
-void SpotifyRequest(string uri, function<void(MacWifiResponse)> onComplete, bool refreshed)
-{
-	_wifiLib.SetAuthorization("Bearer " + _accessToken);
-	_wifiLib.Get(
-		uri,
-		[=](MacWifiResponse response)
-		{
-			if (response.Success)
-			{
-				if (response.StatusCode == 200)
-				{
-					// All good, trigger callback
-					onComplete(response);
-				}
-				else if (response.StatusCode == 401)
-				{
-					if (!refreshed)
-					{
-						// Expired access token, so refresh it and try again
-						RefreshAccessToken(uri, onComplete);
-					}
-					else
-					{
-						// Authentication still failing after a refresh, give up
-						// TODO
-					}
-				}
-				else
-				{
-					// TODO: Something else went wrong
-				}
-			}
-			else
-			{
-				// TODO: Comms error
-			}
-		});
-}
-
-void RefreshAccessToken(string uri, function<void(MacWifiResponse)> onComplete)
-{
-	const std::string authHeader = Keys::SpotifyClientId + ":" + Keys::SpotifyClientSecret;
-	std::string encoded = base64_encode(reinterpret_cast<const unsigned char*>(authHeader.c_str()), authHeader.length());
-
-	_wifiLib.SetAuthorization("Basic " + encoded);
-	_wifiLib.Post(
-		"https://accounts.spotify.com/api/token",
-		"grant_type=refresh_token&refresh_token=" + _refreshToken,
-		[=](MacWifiResponse response)
-		{
-			if (response.Success)
-			{
-				Json::Value root;
-				Json::Reader reader;
-				bool parseSuccess = reader.parse(response.Content.c_str(), root);
-
-				if (parseSuccess)
-				{
-					_prefs.Data["access_token"] = root["access_token"].asString();
-					_prefs.Save();
-
-					_accessToken = _prefs.Data["access_token"].asString();
-
-					SpotifyRequest(uri, onComplete, true);
-				}
-			}
-			else
-			{
-				// TODO
-			}	
-		});
-}
-
 void InitPlayer(DialogPtr dialog)
 {
 	WaitCursor();
 
 	// Get available devices
-	SpotifyRequest(
+	_spotifyClient.Get(
 		"https://api.spotify.com/v1/me/player/devices",
 		[=](MacWifiResponse response)
 		{
 			if (response.Success)
 			{
-				Json::Value root;
-				Json::Reader reader;
+				JsonAllocator allocator;
+				JsonValue root;
+				JsonParseStatus status = jsonParse((char*)response.Content.c_str(), root, allocator);
 				string deviceId, deviceName;
-				bool parseSuccess = reader.parse(response.Content.c_str(), root);
+				bool active;
 
 				MenuHandle deviceMenu = GetMenuHandle(130);
 				int itemCount = CountMItems(deviceMenu);
 
-				if (parseSuccess)
+				if (status == JSON_PARSE_OK)
 				{
-					Json::Value devices = root["devices"];
+					JsonValue devices = root("devices");
 
-					for (int i = 0; i < devices.size(); i++)
+					JsonIterator it = gason::begin(devices);
+					while (it.isValid())
 					{
-						deviceId = devices[i]["id"].asString();
-						deviceName = devices[i]["name"].asString();
+						JsonValue device = it->value;
+
+						deviceId = device("id").toString();
+						deviceName = device("name").toString();
+						active = device("is_active").toBool();
 
 						AppendMenu(deviceMenu, "\p ");
 						itemCount++;
 						SetMenuItemText(deviceMenu, itemCount, Util::StrToPStr(deviceName));
+
+						if (active)
+							SetItemMark(deviceMenu, itemCount, checkMark);
+
+						it++;
 					}
 
 					MacDrawMenuBar();

@@ -7,43 +7,34 @@
 Prefs::Prefs()
 {
 	long theSize = 0, start = 0;
+	PrefsData data;
 	FSSpec theSpec;
 	short theFile;
 	OSErr err;
-
-	char buf[8192];
-	Json::Value root;
 
 	if (GetPrefsSpec(&theSpec))
 	{
 		if (FSpOpenDF(&theSpec, fsRdPerm, &theFile) == noErr)
 		{
-			theSize = sizeof(buf);
-			err = FSRead(theFile, &theSize, &buf);
+			theSize = sizeof(PrefsData);
+			err = FSRead(theFile, &theSize, &data);
 
 			if (err == noErr || err == eofErr)
 			{
-				Json::Reader reader;
-				bool parsingSuccessful = reader.parse(buf, root);
+				Data = data;
 			}
 
 			FSClose(theFile);
 		}
 	}
-
-	Data = root;
 }
 
 bool Prefs::Save()
 {
+	long size = sizeof(PrefsData);
 	FSSpec fsSpec;
 	short file;
 	OSErr err;
-
-	Json::StreamWriterBuilder wbuilder;
-	std::string outputConfig = Json::writeString(wbuilder, Data);
-	const char* prefs = outputConfig.c_str();
-	long size = strlen(prefs);
 
 	if (GetPrefsSpec(&fsSpec)) {
 		err = FSpOpenDF(&fsSpec, fsRdWrPerm, &file);
@@ -53,7 +44,7 @@ bool Prefs::Save()
 		}
 		if (err == noErr) {
 			if (SetEOF(file, 0L) == noErr) {
-				if (FSWrite(file, &size, prefs) == noErr) {
+				if (FSWrite(file, &size, &Data) == noErr) {
 					FSClose(file);
 					return true;
 				}
@@ -68,7 +59,7 @@ bool Prefs::Save()
 
 bool Prefs::GetPrefsSpec(FSSpec *theSpec)
 {
-	Str255 prefsName = "\pMacinspot Preferences";
+	Str255 prefsName = "\pMacPlayer Preferences";
 	short vRefNum;
 	long dirID;
 

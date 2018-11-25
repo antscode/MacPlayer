@@ -106,31 +106,31 @@ resource 'DITL' (128, purgeable) {
 resource 'DITL' (129, purgeable) {
 	{ 
 		/* Nav List */
-		{ 10, 15, 200+10, 100+10 },
+		{ 0, 15, 250, 100+10 },
 		UserItem { enabled };
 
 		/* Track List */
-		{ 10, 120, 200+10, 505 },
+		{ 0, 120, 250, 505 },
 		UserItem { enabled };
 
 		/* Play */
-		{ 254, 237, 286, 269 },
+		{ 258, 237, 290, 269 },
 		Icon { enabled, 128 };
 
 		/* Previous Track */
-		{ 262, 201, 278, 217 },
+		{ 266, 201, 282, 217 },
 		Icon { enabled, 130 };
 
 		/* Next Track */
-		{ 262, 289, 278, 305 },
+		{ 266, 289, 282, 305 },
 		Icon { enabled, 129 };
 
 		/* Shuffle */
-		{ 262, 155, 278, 171 },
+		{ 266, 155, 282, 171 },
 		Icon { enabled, 131 };
 
 		/* Repeat */
-		{ 262, 335, 278, 351 },
+		{ 266, 335, 282, 351 },
 		Icon { enabled, 132 };
 	}
 };
