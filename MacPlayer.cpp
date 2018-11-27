@@ -279,7 +279,7 @@ void HandlePlayerContent(short item)
 				if (dblClick)
 				{
 					_currentTrack = _tracks[cellIndex];
-					ViewNowPlaying();
+					PlayTrack();
 				}
 			}
 			break;
@@ -288,7 +288,12 @@ void HandlePlayerContent(short item)
 
 void PlayTrack()
 {
-	// TODO
+	_spotifyClient.PlayTrack(
+		_currentTrack.uri, 
+		[=](JsonValue& root)
+		{
+			ViewNowPlaying();
+		});
 }
 
 void ViewNowPlaying()
@@ -300,116 +305,88 @@ void ViewNowPlaying()
 
 	if (image != "")
 	{
-		_wifiLib.Utf8ToMacRoman(false);
-		_wifiLib.Get(
-			"https://68k.io/image?ma_client_id=" + Keys::ClientId +
-			"&source_url=" + image +
-			"&dest_width=250&dest_height=250",
-			[=](MacWifiResponse response)
-		{
-			if (response.Success)
+		_spotifyClient.GetImage(image, 
+			[=](PicHandle picHandle)
 			{
-				vector<char> v(response.Content.begin(), response.Content.end());
-				char* pict = &v[512]; // Skip 512-byte PICT1 header
-
-				PicHandle imageHandle = (PicHandle)&pict;
-
 				Rect pictRect;
 				MacSetRect(&pictRect, 127, 0, 377, 250);
 
-				DrawPicture(imageHandle, &pictRect);
-
-				_wifiLib.Utf8ToMacRoman(true);
-			}
-		});
+				DrawPicture(picHandle, &pictRect);
+				DisposeHandle((Handle)picHandle);
+			});
 	}
 }
 
 void GetRecentTracks()
 {
-	_spotifyClient.Get(
-		"https://api.spotify.com/v1/me/player/recently-played",
-		[=](MacWifiResponse response)
-	{
-		if (response.Success)
+	_spotifyClient.GetRecentTracks(
+		[=](JsonValue& root)
 		{
-			JsonAllocator    allocator;
-			JsonValue        root;
-			
 			string deviceId, deviceName;
-
 			MenuHandle deviceMenu = GetMenuHandle(130);
 			int itemCount = CountMItems(deviceMenu);
 
-			JsonParseStatus status = jsonParse((char*)response.Content.c_str(), root, allocator);
-			if (status == JSON_PARSE_OK)
+			JsonValue items = root("items");
+			JsonValue track;
+			JsonValue artists;
+			Cell cell;
+			char* trackName;
+			char* artist;
+
+			int rowNum = (**_trackList).dataBounds.bottom;
+
+			ShowDialogItem(_dialog, 2);
+			ShowControl((**_trackList).vScroll);
+
+			LSetDrawingMode(false, _trackList);
+
+			JsonIterator it = gason::begin(items);
+				
+			_tracks.clear();
+			LDelRow(0, 0, _trackList);
+				
+			while (it.isValid())
 			{
-				JsonValue items = root("items");
-				JsonValue track;
-				JsonValue artists;
-				Cell cell;
-				char* trackName;
-				char* artist;
+				JsonValue father = it->value;
 
-				int rowNum = (**_trackList).dataBounds.bottom;
+				track = father("track");
+				trackName = track("name").toString();
+				artists = track("artists");
+				artist = artists[0]("name").toString();
 
-				ShowDialogItem(_dialog, 2);
-				ShowControl((**_trackList).vScroll);
+				char* pLabel = (char*)Util::CtoPStr(trackName);
+				Str255 label;
+				strncpy((char*)label, pLabel, 256);
 
-				LSetDrawingMode(false, _trackList);
+				rowNum = LAddRow(1, rowNum, _trackList);
+				SetPt(&cell, 0, rowNum);
+				LSetCell(label, sizeof(Str255), cell, _trackList);
 
-				JsonIterator it = gason::begin(items);
-				
-				_tracks.clear();
-				LDelRow(0, 0, _trackList);
-				
-				while (it.isValid())
-				{
-					JsonValue father = it->value;
+				char* pArtist = (char*)Util::CtoPStr(artist);
+				Str255 artist255;
+				strncpy((char*)artist255, pArtist, 256);
 
-					track = father("track");
-					trackName = track("name").toString();
-					artists = track("artists");
-					artist = artists[0]("name").toString();
+				SetPt(&cell, 1, rowNum);
+				LSetCell(artist255, sizeof(Str255), cell, _trackList);
 
-					char* pLabel = (char*)Util::CtoPStr(trackName);
-					Str255 label;
-					strncpy((char*)label, pLabel, 256);
+				Track trackObj;
+				trackObj.uri = track("uri").toString();
+				trackObj.image = GetTrackImage(track);
 
-					rowNum = LAddRow(1, rowNum, _trackList);
-					SetPt(&cell, 0, rowNum);
-					LSetCell(label, sizeof(Str255), cell, _trackList);
+				_tracks.push_back(trackObj);
 
-					char* pArtist = (char*)Util::CtoPStr(artist);
-					Str255 artist255;
-					strncpy((char*)artist255, pArtist, 256);
-
-					SetPt(&cell, 1, rowNum);
-					LSetCell(artist255, sizeof(Str255), cell, _trackList);
-
-					Track trackObj;
-					trackObj.image = GetTrackImage(track);
-
-					_tracks.push_back(trackObj);
-
-					rowNum = rowNum + 1;
-					it++;
-				}
-
-				LSetDrawingMode(true, _trackList);
-				InvalRect(&(**_trackList).rView);
-
-				if((**_trackList).vScroll != NULL)
-					InvalRect(&(**(**_trackList).vScroll).contrlRect);
-
-				LUpdate(_dialog->visRgn, _trackList);
+				rowNum = rowNum + 1;
+				it++;
 			}
-		}
-		else
-		{
-			// TODO
-		}
-	});
+
+			LSetDrawingMode(true, _trackList);
+			InvalRect(&(**_trackList).rView);
+
+			if((**_trackList).vScroll != NULL)
+				InvalRect(&(**(**_trackList).vScroll).contrlRect);
+
+			LUpdate(_dialog->visRgn, _trackList);
+		});
 }
 
 string GetTrackImage(JsonValue& track)
@@ -531,6 +508,19 @@ void PopulateNavList(ListHandle list)
 		LSetCell(label, sizeof(Str255), cell, list);
 		rowNum = rowNum + 1;
 	}
+
+	for (const auto& playlist : _playlists)
+	{
+		rowNum = LAddRow(1, rowNum, list);
+		SetPt(&cell, 0, rowNum);
+
+		char* pLabel = (char*)Util::StrToPStr(playlist.name);
+		Str255 label;
+		strncpy((char*)label, pLabel, 256);
+
+		LSetCell(label, sizeof(Str255), cell, list);
+		rowNum = rowNum + 1;
+	}
 }
 
 void InitPlayer(DialogPtr dialog)
@@ -538,53 +528,64 @@ void InitPlayer(DialogPtr dialog)
 	WaitCursor();
 
 	// Get available devices
-	_spotifyClient.Get(
-		"https://api.spotify.com/v1/me/player/devices",
-		[=](MacWifiResponse response)
+	_spotifyClient.GetDevices(
+		[=](JsonValue& root)
+		{	
+			string deviceId, deviceName;
+			bool active;
+
+			MenuHandle deviceMenu = GetMenuHandle(130);
+			int itemCount = CountMItems(deviceMenu);
+
+			JsonValue devices = root("devices");
+
+			JsonIterator it = gason::begin(devices);
+			while (it.isValid())
+			{
+				JsonValue device = it->value;
+
+				deviceId = device("id").toString();
+				deviceName = device("name").toString();
+				active = device("is_active").toBool();
+
+				AppendMenu(deviceMenu, "\p ");
+				itemCount++;
+				SetMenuItemText(deviceMenu, itemCount, Util::StrToPStr(deviceName));
+
+				if (active)
+					SetItemMark(deviceMenu, itemCount, checkMark);
+
+				it++;
+			}
+
+			MacDrawMenuBar();
+			GetPlaylists(dialog);
+		});
+}
+
+void GetPlaylists(DialogPtr dialog)
+{
+	_spotifyClient.GetPlaylists(
+		[=](JsonValue& root)
 		{
-			if (response.Success)
+			JsonValue playlists = root("items");
+
+			JsonIterator it = gason::begin(playlists);
+			while (it.isValid())
 			{
-				JsonAllocator allocator;
-				JsonValue root;
-				JsonParseStatus status = jsonParse((char*)response.Content.c_str(), root, allocator);
-				string deviceId, deviceName;
-				bool active;
+				JsonValue playlistNode = it->value;
 
-				MenuHandle deviceMenu = GetMenuHandle(130);
-				int itemCount = CountMItems(deviceMenu);
+				Playlist playlist;
+				playlist.name = playlistNode("name").toString();
+				playlist.uri = playlistNode("uri").toString();
 
-				if (status == JSON_PARSE_OK)
-				{
-					JsonValue devices = root("devices");
+				_playlists.push_back(playlist);
 
-					JsonIterator it = gason::begin(devices);
-					while (it.isValid())
-					{
-						JsonValue device = it->value;
-
-						deviceId = device("id").toString();
-						deviceName = device("name").toString();
-						active = device("is_active").toBool();
-
-						AppendMenu(deviceMenu, "\p ");
-						itemCount++;
-						SetMenuItemText(deviceMenu, itemCount, Util::StrToPStr(deviceName));
-
-						if (active)
-							SetItemMark(deviceMenu, itemCount, checkMark);
-
-						it++;
-					}
-
-					MacDrawMenuBar();
-					ModePlayer(dialog);
-					InitCursor();
-				}
+				it++;
 			}
-			else
-			{
-				// TODO
-			}
+
+			ModePlayer(dialog);
+			InitCursor();
 		});
 }
 

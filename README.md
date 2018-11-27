@@ -6,7 +6,7 @@ MacPlayer requires Retro68 for compilation, and the following libraries:
 
 * [MacWifiLib](https://github.com/antscode/MacWifi)
 * [MacAuthLib](https://github.com/antscode/MacAuthLib)
-* [jsoncpp](https://github.com/open-source-parsers/jsoncpp)
+* [gason++](https://github.com/antscode/gason--)
 
 Once the above libraries are built and installed, execute these commands from the top level of the MacPlayer directory:
 

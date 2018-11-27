@@ -43,18 +43,28 @@ void HandleAppleChoice(short item);
 void WaitCursor();
 void HandlePlayerContent(short item);
 void GetRecentTracks();
+void GetPlaylists(DialogPtr dialog);
 void InitCustomLDEF();
+void PlayTrack();
 void ViewNowPlaying();
+
+struct Playlist
+{
+	string name;
+	string uri;
+};
+
 
 struct Track
 {
 	string name;
 	string artist;
-	string id;
+	string uri;
 	string image;
 };
 
 vector<Track> _tracks;
+vector<Playlist> _playlists;
 Track _currentTrack;
 
 ListHandle _navList, _trackList;

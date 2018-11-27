@@ -1,11 +1,9 @@
 #include <vector>
 #include <MacAuth/MacAuth.h>
-#include <gason/gason.hpp>
 #include "SpotifyClient.h"
 #include "Keys.h"
 #include "base64.h"
-
-using namespace gason;
+#include "Util.h"
 
 SpotifyClient::SpotifyClient(MacWifiLib* wifiLib, Prefs* prefs)
 {
@@ -16,17 +14,71 @@ SpotifyClient::SpotifyClient(MacWifiLib* wifiLib, Prefs* prefs)
 	RefreshToken = string(_prefs->Data.RefreshToken);
 }
 
-void SpotifyClient::Get(string uri, function<void(MacWifiResponse)> onComplete)
+void SpotifyClient::GetRecentTracks(function<void(JsonValue&)> onComplete)
+{
+	Get(
+		"https://api.spotify.com/v1/me/player/recently-played?limit=10", 
+		onComplete);
+}
+
+void SpotifyClient::PlayTrack(const string& trackUri, function<void(JsonValue&)> onComplete)
+{
+	Put(
+		"https://api.spotify.com/v1/me/player/play",
+		"{ \"uris\": [ \"" + trackUri + "\" ] }",
+		onComplete);
+}
+
+void SpotifyClient::GetDevices(function<void(JsonValue&)> onComplete)
+{
+	Get(
+		"https://api.spotify.com/v1/me/player/devices",
+		onComplete);
+}
+
+void SpotifyClient::GetPlaylists(function<void(JsonValue&)> onComplete)
+{
+	Get(
+		"https://api.spotify.com/v1/me/playlists",
+		onComplete);
+}
+
+void SpotifyClient::GetImage(const string& image, function<void(PicHandle)> onComplete)
+{
+	_wifiLib->Utf8ToMacRoman(false);
+	_wifiLib->Get(
+		"https://68k.io/image?ma_client_id=" + Keys::ClientId +
+		"&source_url=" + image +
+		"&dest_width=250&dest_height=250",
+		[=](MacWifiResponse& response)
+	{
+		if (response.Success)
+		{
+			_wifiLib->Utf8ToMacRoman(true);
+			vector<char> v(response.Content.begin(), response.Content.end());
+			char* pict = &v[512]; // Skip 512-byte PICT1 header
+
+			PicHandle imageHandle = (PicHandle)&pict;
+			onComplete(imageHandle);
+		}
+		else
+		{
+			// TODO
+		}
+	});
+}
+
+void SpotifyClient::Get(string uri, function<void(JsonValue&)> onComplete)
 {
 	Request(uri, "", onComplete, bind(&SpotifyClient::DoGet, this) , false);
 }
 
-void SpotifyClient::Post(string uri, string content, function<void(MacWifiResponse)> onComplete)
+void SpotifyClient::Post(string uri, string content, function<void(JsonValue&)> onComplete)
 {
 	Request(uri, content, onComplete, bind(&SpotifyClient::DoPost, this), false);
 }
 
-void SpotifyClient::Put(string uri, string content, function<void(MacWifiResponse)> onComplete)
+void SpotifyClient::Put(string uri, string content, function<void(JsonValue&)> onComplete)
 {
 	Request(uri, content, onComplete, bind(&SpotifyClient::DoPut, this), false);
 }
@@ -34,7 +86,7 @@ void SpotifyClient::Put(string uri, string content, function<void(MacWifiRespons
 void SpotifyClient::Request(
 	string uri, 
 	string content, 
-	function<void(MacWifiResponse)> onComplete, 
+	function<void(JsonValue&)> onComplete,
 	function<void()> doRequest, 
 	bool refreshed)
 {
@@ -50,27 +102,47 @@ void SpotifyClient::Request(
 
 void SpotifyClient::DoGet()
 {
-	_wifiLib->Get(_uri, _onComplete);
+	_wifiLib->Get(_uri, bind(&SpotifyClient::HandleResponse, this, _1));
 }
 
 void SpotifyClient::DoPost()
 {
-	_wifiLib->Post(_uri, _content, _onComplete);
+	_wifiLib->Post(_uri, _content, bind(&SpotifyClient::HandleResponse, this, _1));
 }
 
 void SpotifyClient::DoPut()
 {
-	_wifiLib->Put(_uri, _content, _onComplete);
+	_wifiLib->Put(_uri, _content, bind(&SpotifyClient::HandleResponse, this, _1));
 }
 
-void SpotifyClient::HandleResponse(MacWifiResponse response)
+void SpotifyClient::HandleResponse(MacWifiResponse& response)
 {
 	if (response.Success)
 	{
-		if (response.StatusCode == 200)
+		if (response.StatusCode >= 200 &&
+			response.StatusCode <= 299)
 		{
-			// All good, trigger callback
-			_onComplete(response);
+			if (response.StatusCode != 204)
+			{
+				// All good, parse json
+				JsonAllocator allocator;
+				JsonParseStatus status = jsonParse((char*)response.Content.c_str(), _root, allocator);
+
+				if (status == JSON_PARSE_OK)
+				{
+					_onComplete(_root);
+				}
+				else
+				{
+					// TODO: Handle error
+				}
+			}
+			else
+			{
+				// No content
+				JsonValue nullValue = JsonValue();
+				_onComplete(nullValue);
+			}
 		}
 		else if (response.StatusCode == 401)
 		{
@@ -106,7 +178,7 @@ void SpotifyClient::Login(function<void(LoginResponse)> onComplete)
 
 	authRequest.Params.insert(pair<string, string>("client_id", Keys::SpotifyClientId));
 	authRequest.Params.insert(pair<string, string>("response_type", "code"));
-	authRequest.Params.insert(pair<string, string>("scope", MacWifiLib::Encode("user-read-playback-state user-read-recently-played")));
+	authRequest.Params.insert(pair<string, string>("scope", MacWifiLib::Encode(_permissions)));
 
 	AuthResponse authResponse = macAuth.Authenticate(authRequest);
 
