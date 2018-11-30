@@ -24,8 +24,11 @@ class SpotifyClient
 		void Login(function<void(LoginResponse)> onComplete);
 		void GetRecentTracks(function<void(JsonValue&)> onComplete);
 		void PlayTrack(const string& trackUri, function<void(JsonValue&)> onComplete);
+		void NextTrack(function<void(JsonValue&)> onComplete);
+		void PreviousTrack(function<void(JsonValue&)> onComplete);
 		void GetDevices(function<void(JsonValue&)> onComplete);
 		void GetPlaylists(function<void(JsonValue&)> onComplete);
+		void GetPlaylistTracks(const string& playlistId, function<void(JsonValue&)> onComplete);
 		void GetImage(const string& image, function<void(PicHandle)> onComplete);
 
 	private:

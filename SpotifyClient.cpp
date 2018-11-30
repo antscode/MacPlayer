@@ -29,6 +29,22 @@ void SpotifyClient::PlayTrack(const string& trackUri, function<void(JsonValue&)>
 		onComplete);
 }
 
+void SpotifyClient::NextTrack(function<void(JsonValue&)> onComplete)
+{
+	Post(
+		"https://api.spotify.com/v1/me/player/next",
+		"",
+		onComplete);
+}
+
+void SpotifyClient::PreviousTrack(function<void(JsonValue&)> onComplete)
+{
+	Post(
+		"https://api.spotify.com/v1/me/player/previous",
+		"",
+		onComplete);
+}
+
 void SpotifyClient::GetDevices(function<void(JsonValue&)> onComplete)
 {
 	Get(
@@ -40,6 +56,15 @@ void SpotifyClient::GetPlaylists(function<void(JsonValue&)> onComplete)
 {
 	Get(
 		"https://api.spotify.com/v1/me/playlists",
+		onComplete);
+}
+
+void SpotifyClient::GetPlaylistTracks(const string& playlistId, function<void(JsonValue&)> onComplete)
+{
+	Get(
+		"https://api.spotify.com/v1/playlists/" + playlistId + "/tracks?"
+		"limit=20&"
+		"fields=items(track(name,uri,album(images(url)),artists(name)))",
 		onComplete);
 }
 

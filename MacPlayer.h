@@ -11,6 +11,7 @@ const short mAppleMenu = 128;
 
 enum UIState
 {
+	Init,
 	Login,
 	Player
 };
@@ -36,6 +37,7 @@ void HandleLoginContent(short item);
 void HandleUpdate(EventRecord *eventPtr);
 void HandleActivate(EventRecord *eventPtr);
 void HandleOSEvt(EventRecord *eventPtr);
+void ModeInit(DialogPtr dialog);
 void ModeLogin(DialogPtr dialog);
 void ModePlayer(DialogPtr dialog);
 void HandleMenuChoice(long menuChoice);
@@ -44,13 +46,16 @@ void WaitCursor();
 void HandlePlayerContent(short item);
 void GetRecentTracks();
 void GetPlaylists(DialogPtr dialog);
+void GetPlaylistTracks(const string& playlistId);
 void InitCustomLDEF();
 void PlayTrack();
 void ViewNowPlaying();
+void PopulateTrackList(JsonValue& root);
 
 struct Playlist
 {
 	string name;
+	string id;
 	string uri;
 };
 
