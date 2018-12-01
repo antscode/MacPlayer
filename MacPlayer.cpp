@@ -162,7 +162,11 @@ void HandleMouseDown(EventRecord *eventPtr)
 		case inGoAway:
 			if (TrackGoAway(window, eventPtr->where))
 			{
-				_run = false;
+				_spotifyClient.Pause(
+					[](JsonValue& root)
+					{
+						_run = false;
+					});
 			}
 			break;
 	}
@@ -265,9 +269,9 @@ void HandlePlayerContent(short item)
 
 			short cellIndex = cell.v;
 
-			if (cellIndex > 4)// FIX ME!
+			if (cellIndex > 4) // FIX ME!
 			{
-				GetPlaylistTracks(_playlists[cellIndex - 4].id);
+				GetPlaylistTracks(_playlists[cellIndex - 4].uri, _playlists[cellIndex - 4].id);
 			}
 			else
 			{
@@ -298,7 +302,7 @@ void HandlePlayerContent(short item)
 			_spotifyClient.PreviousTrack(
 				[=](JsonValue& root)
 				{
-					
+					UpdateCurrentTrack();
 				});
 			break;
 		}
@@ -308,7 +312,7 @@ void HandlePlayerContent(short item)
 			_spotifyClient.NextTrack(
 				[=](JsonValue& root)
 				{
-
+					UpdateCurrentTrack();
 				});
 			break;
 		}
@@ -319,10 +323,31 @@ void HandlePlayerContent(short item)
 void PlayTrack()
 {
 	_spotifyClient.PlayTrack(
+		_currentContext,
 		_currentTrack.uri, 
 		[=](JsonValue& root)
 		{
 			ViewNowPlaying();
+		});
+}
+
+void UpdateCurrentTrack()
+{
+	_spotifyClient.GetCurrentlyPlaying(
+		[=](JsonValue& root)
+		{
+			JsonValue track = root("item");
+
+			if (track.getTag() == JSON_OBJECT)
+			{
+				_currentTrack = GetTrackObject(track);
+
+				ViewNowPlaying();
+			}
+			else
+			{
+				// TODO: nothing playing
+			}
 		});
 }
 
@@ -341,8 +366,19 @@ void ViewNowPlaying()
 				Rect pictRect;
 				MacSetRect(&pictRect, 127, 0, 377, 250);
 
-				DrawPicture(picHandle, &pictRect);
-				DisposeHandle((Handle)picHandle);
+				if (picHandle != nil)
+				{
+					ForeColor(whiteColor);
+					PaintRect(&pictRect);
+					DrawPicture(picHandle, &pictRect);
+					DisposeHandle((Handle)picHandle);
+				}
+				else
+				{
+					// Error getting image, just draw black
+					ForeColor(blackColor);
+					PaintRect(&pictRect);
+				}
 			});
 	}
 }
@@ -356,12 +392,13 @@ void GetRecentTracks()
 		});
 }
 
-void GetPlaylistTracks(const string& playlistId)
+void GetPlaylistTracks(const string& uri, const string& playlistId)
 {
 	_spotifyClient.GetPlaylistTracks(
 		playlistId,
 		[=](JsonValue& root)
 		{
+			_currentContext = uri;
 			PopulateTrackList(root);
 		});
 }
@@ -411,11 +448,7 @@ void PopulateTrackList(JsonValue& root)
 		SetPt(&cell, 1, rowNum);
 		LSetCell(artist255, sizeof(Str255), cell, _trackList);
 
-		Track trackObj;
-		trackObj.uri = track("uri").toString();
-		trackObj.image = GetTrackImage(track);
-
-		_tracks.push_back(trackObj);
+		_tracks.push_back(GetTrackObject(track));
 
 		rowNum = rowNum + 1;
 		it++;
@@ -428,6 +461,16 @@ void PopulateTrackList(JsonValue& root)
 		InvalRect(&(**(**_trackList).vScroll).contrlRect);
 
 	LUpdate(_dialog->visRgn, _trackList);
+}
+
+Track GetTrackObject(JsonValue& track)
+{
+	Track trackObj;
+	trackObj.name = track("name").toString();
+	trackObj.uri = track("uri").toString();
+	trackObj.image = GetTrackImage(track);
+
+	return trackObj;
 }
 
 string GetTrackImage(JsonValue& track)

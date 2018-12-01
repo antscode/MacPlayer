@@ -16,6 +16,22 @@ enum UIState
 	Player
 };
 
+struct Playlist
+{
+	string name;
+	string id;
+	string uri;
+};
+
+
+struct Track
+{
+	string name;
+	string artist;
+	string uri;
+	string image;
+};
+
 
 bool _run = true;
 UIState _uiState = Login;
@@ -46,31 +62,18 @@ void WaitCursor();
 void HandlePlayerContent(short item);
 void GetRecentTracks();
 void GetPlaylists(DialogPtr dialog);
-void GetPlaylistTracks(const string& playlistId);
+void GetPlaylistTracks(const string& uri, const string& playlistId);
 void InitCustomLDEF();
 void PlayTrack();
 void ViewNowPlaying();
+void UpdateCurrentTrack();
 void PopulateTrackList(JsonValue& root);
-
-struct Playlist
-{
-	string name;
-	string id;
-	string uri;
-};
-
-
-struct Track
-{
-	string name;
-	string artist;
-	string uri;
-	string image;
-};
+Track GetTrackObject(JsonValue& track);
 
 vector<Track> _tracks;
 vector<Playlist> _playlists;
 Track _currentTrack;
+string _currentContext;
 
 ListHandle _navList, _trackList;
 ListHandle CreateList(

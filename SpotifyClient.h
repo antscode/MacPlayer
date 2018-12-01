@@ -23,13 +23,15 @@ class SpotifyClient
 		SpotifyClient(MacWifiLib* wifiLib, Prefs* prefs);
 		void Login(function<void(LoginResponse)> onComplete);
 		void GetRecentTracks(function<void(JsonValue&)> onComplete);
-		void PlayTrack(const string& trackUri, function<void(JsonValue&)> onComplete);
+		void PlayTrack(const string& contextUri, const string& trackUri, function<void(JsonValue&)> onComplete);
 		void NextTrack(function<void(JsonValue&)> onComplete);
 		void PreviousTrack(function<void(JsonValue&)> onComplete);
 		void GetDevices(function<void(JsonValue&)> onComplete);
 		void GetPlaylists(function<void(JsonValue&)> onComplete);
 		void GetPlaylistTracks(const string& playlistId, function<void(JsonValue&)> onComplete);
 		void GetImage(const string& image, function<void(PicHandle)> onComplete);
+		void GetCurrentlyPlaying(function<void(JsonValue&)> onComplete);
+		void Pause(function<void(JsonValue&)> onComplete);
 
 	private:
 		const string _permissions =
@@ -62,6 +64,7 @@ class SpotifyClient
 		void DoPut();
 		void HandleResponse(MacWifiResponse& response);
 		void RefreshAccessToken();
+		void HandleError(const string& errorMsg);
 };
 
 #endif

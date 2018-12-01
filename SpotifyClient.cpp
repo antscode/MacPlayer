@@ -21,11 +21,11 @@ void SpotifyClient::GetRecentTracks(function<void(JsonValue&)> onComplete)
 		onComplete);
 }
 
-void SpotifyClient::PlayTrack(const string& trackUri, function<void(JsonValue&)> onComplete)
+void SpotifyClient::PlayTrack(const string& contextUri, const string& trackUri, function<void(JsonValue&)> onComplete)
 {
 	Put(
 		"https://api.spotify.com/v1/me/player/play",
-		"{ \"uris\": [ \"" + trackUri + "\" ] }",
+		"{ \"context_uri\": \"" + contextUri + "\", \"offset\": { \"uri\": \"" + trackUri + "\" } }",
 		onComplete);
 }
 
@@ -88,9 +88,25 @@ void SpotifyClient::GetImage(const string& image, function<void(PicHandle)> onCo
 		}
 		else
 		{
-			// TODO
+			// Something went wrong, return null
+			onComplete(nil);
 		}
 	});
+}
+
+void SpotifyClient::GetCurrentlyPlaying(function<void(JsonValue&)> onComplete)
+{
+	Get(
+		"https://api.spotify.com/v1/me/player",
+		onComplete);
+}
+
+void SpotifyClient::Pause(function<void(JsonValue&)> onComplete)
+{
+	Put(
+		"https://api.spotify.com/v1/me/player/pause",
+		"",
+		onComplete);
 }
 
 void SpotifyClient::Get(string uri, function<void(JsonValue&)> onComplete)
@@ -159,7 +175,7 @@ void SpotifyClient::HandleResponse(MacWifiResponse& response)
 				}
 				else
 				{
-					// TODO: Handle error
+					HandleError(_uri + ": Error parsing response.");
 				}
 			}
 			else
@@ -179,17 +195,17 @@ void SpotifyClient::HandleResponse(MacWifiResponse& response)
 			else
 			{
 				// Authentication still failing after a refresh, give up
-				// TODO
+				HandleError(_uri + ": Authentication error.");
 			}
 		}
 		else
 		{
-			// TODO: Something else went wrong
+			HandleError(_uri + ": HTTP " + to_string(response.StatusCode) + " response.");
 		}
 	}
 	else
 	{
-		// TODO: Comms error
+		HandleError(_uri + ": " + response.ErrorMsg);
 	}
 }
 
@@ -243,10 +259,14 @@ void SpotifyClient::Login(function<void(LoginResponse)> onComplete)
 							
 						loginResponse.Success = true;
 					}
+					else
+					{
+						HandleError("Login: Error parsing response.");
+					}
 				}
 				else
 				{
-					// TODO
+					HandleError("Login: " + response.ErrorMsg);
 				}
 
 				onComplete(loginResponse);
@@ -254,8 +274,11 @@ void SpotifyClient::Login(function<void(LoginResponse)> onComplete)
 	}
 	else
 	{
-		// TODO
-		//onComplete(response);
+		LoginResponse loginResponse;
+		loginResponse.Success = false;
+		loginResponse.ErrorMsg = "";
+
+		onComplete(loginResponse);
 	}
 }
 
@@ -290,12 +313,21 @@ void SpotifyClient::RefreshAccessToken()
 			}
 			else
 			{
-				// TODO
+				HandleError("RefreshAccessToken: Error parsing response.");
 			}
 		}
 		else
 		{
-			// TODO
+			HandleError("RefreshAccessToken: " + response.ErrorMsg);
 		}
 	});
+}
+
+void SpotifyClient::HandleError(const string& errorMsg)
+{
+	ParamText(Util::StrToPStr(errorMsg), nil, nil, nil);
+	StopAlert(131, nil);
+
+	// Reset any wait cursor
+	InitCursor();
 }
