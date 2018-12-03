@@ -18,6 +18,7 @@ class Util
 		static bool IsControlHilited(DialogPtr dialog, short itemNo);
 		static string UrlEncode(string &value);
 		static double MicrosecondToDouble(register const UnsignedWide *epochPtr);
+		static OSErr GetDirectoryId(short parentFolderVRefNum, long parentFolderDirID, Str255 folderName, long* directoryId);
 };
 
 #endif // _UTIL_

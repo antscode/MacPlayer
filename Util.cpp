@@ -155,3 +155,23 @@ double Util::MicrosecondToDouble(register const UnsignedWide *epochPtr)
 	result = (((double)epochPtr->hi) * kTwoPower32) + epochPtr->lo;
 	return (result);
 }
+
+// From: https://www.fenestrated.net/mirrors/Apple%20Technotes%20(As%20of%202002)/fl/fl_510.html
+OSErr Util::GetDirectoryId(short parentFolderVRefNum, long parentFolderDirID, Str255 folderName, long* directoryId)
+{
+	CInfoPBRec myCInfoPBRec;
+	OSErr retCode;
+
+	myCInfoPBRec.dirInfo.ioCompletion = nil;
+	myCInfoPBRec.dirInfo.ioNamePtr = folderName;
+	myCInfoPBRec.dirInfo.ioVRefNum = parentFolderVRefNum;
+	myCInfoPBRec.dirInfo.ioFDirIndex = 0; // use name, vRefNum, dirID
+	myCInfoPBRec.dirInfo.ioDrDirID = parentFolderDirID; // will be changed
+
+	retCode = PBGetCatInfoSync(&myCInfoPBRec); // IM IV - 155
+
+	if(retCode == noErr)
+		*directoryId = myCInfoPBRec.dirInfo.ioDrDirID;
+
+	return retCode;
+}

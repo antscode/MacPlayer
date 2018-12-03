@@ -29,7 +29,7 @@ class SpotifyClient
 		void GetDevices(function<void(JsonValue&)> onComplete);
 		void GetPlaylists(function<void(JsonValue&)> onComplete);
 		void GetPlaylistTracks(const string& playlistId, function<void(JsonValue&)> onComplete);
-		void GetImage(const string& image, function<void(PicHandle)> onComplete);
+		void GetImage(const string& image, const string& albumId, function<void(PicHandle)> onComplete);
 		void GetCurrentlyPlaying(function<void(JsonValue&)> onComplete);
 		void Pause(function<void(JsonValue&)> onComplete);
 
@@ -48,6 +48,8 @@ class SpotifyClient
 		function<void()> _doRequest;
 		string _uri, _content;
 		bool _refreshed;
+		short _cacheVRefNum;
+		long _cacheDirId;
 
 		void Get(string uri, function<void(JsonValue&)> onComplete);
 		void Post(string uri, string content, function<void(JsonValue&)> onComplete);
@@ -65,6 +67,8 @@ class SpotifyClient
 		void HandleResponse(MacWifiResponse& response);
 		void RefreshAccessToken();
 		void HandleError(const string& errorMsg);
+		void InitCache();
+		bool SaveImage(const FSSpec* imageSpec, const vector<char>& content);
 };
 
 #endif

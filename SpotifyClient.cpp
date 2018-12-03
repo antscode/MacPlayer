@@ -1,5 +1,7 @@
 #include <vector>
 #include <MacAuth/MacAuth.h>
+#include <Folders.h>
+#include <Script.h>
 #include "SpotifyClient.h"
 #include "Keys.h"
 #include "base64.h"
@@ -12,6 +14,7 @@ SpotifyClient::SpotifyClient(MacWifiLib* wifiLib, Prefs* prefs)
 
 	AccessToken = string(_prefs->Data.AccessToken);
 	RefreshToken = string(_prefs->Data.RefreshToken);
+	InitCache();
 }
 
 void SpotifyClient::GetRecentTracks(function<void(JsonValue&)> onComplete)
@@ -64,34 +67,77 @@ void SpotifyClient::GetPlaylistTracks(const string& playlistId, function<void(Js
 	Get(
 		"https://api.spotify.com/v1/playlists/" + playlistId + "/tracks?"
 		"limit=20&"
-		"fields=items(track(name,uri,album(images(url)),artists(name)))",
+		"fields=items(track(name,uri,album(id,images(url)),artists(name)))",
 		onComplete);
 }
 
-void SpotifyClient::GetImage(const string& image, function<void(PicHandle)> onComplete)
+void SpotifyClient::GetImage(const string& image, const string& albumId, function<void(PicHandle)> onComplete)
 {
-	_wifiLib->Utf8ToMacRoman(false);
-	_wifiLib->Get(
-		"https://68k.io/image?ma_client_id=" + Keys::ClientId +
-		"&source_url=" + image +
-		"&dest_width=250&dest_height=250",
-		[=](MacWifiResponse& response)
-	{
-		if (response.Success)
-		{
-			_wifiLib->Utf8ToMacRoman(true);
-			vector<char> v(response.Content.begin(), response.Content.end());
-			char* pict = &v[512]; // Skip 512-byte PICT1 header
+	FSSpec imageSpec;
+	OSErr err;
+	short file;
 
+	// Check cache for existing image
+	// We use album ID because the GUID image ID is too long for the Mac filesystem
+	unsigned char* filename = Util::StrToPStr(albumId);
+	FSMakeFSSpec(_cacheVRefNum, _cacheDirId, filename, &imageSpec);
+	err = FSpOpenDF(&imageSpec, fsRdPerm, &file);
+
+	if (err == noErr) {
+		// Cached image exists, use it
+		long size;
+		GetEOF(file, &size);
+
+		Ptr buffer = NewPtr(size);
+		err = FSRead(file, &size, buffer);
+
+		if (err == noErr || err == eofErr)
+		{
+			char* pict = &buffer[512]; // Skip 512-byte PICT1 header
 			PicHandle imageHandle = (PicHandle)&pict;
 			onComplete(imageHandle);
+			DisposeHandle((Handle)imageHandle);
 		}
 		else
 		{
 			// Something went wrong, return null
 			onComplete(nil);
 		}
-	});
+
+		FSClose(file);
+		DisposePtr(buffer);
+	}
+	else
+	{
+		// Download image
+		_wifiLib->Utf8ToMacRoman(false);
+		_wifiLib->Get(
+			"https://68k.io/image?ma_client_id=" + Keys::ClientId +
+			"&source_url=" + image +
+			"&dest_width=250&dest_height=250",
+			[=](MacWifiResponse& response)
+			{
+				_wifiLib->Utf8ToMacRoman(true);
+				
+				if (response.Success)
+				{
+					vector<char> v(response.Content.begin(), response.Content.end());
+
+					// Save image to cache
+					SaveImage(&imageSpec, v);
+
+					char* pict = &v[512]; // Skip 512-byte PICT1 header
+					PicHandle imageHandle = (PicHandle)&pict;
+					onComplete(imageHandle);
+					DisposeHandle((Handle)imageHandle);
+				}
+				else
+				{
+					// Something went wrong, return null
+					onComplete(nil);
+				}
+			});
+	}
 }
 
 void SpotifyClient::GetCurrentlyPlaying(function<void(JsonValue&)> onComplete)
@@ -330,4 +376,61 @@ void SpotifyClient::HandleError(const string& errorMsg)
 
 	// Reset any wait cursor
 	InitCursor();
+}
+
+void SpotifyClient::InitCache()
+{
+	FSSpec dirSpec;
+	FInfo dirInfo;
+	OSErr err;
+	long dirID;
+
+	// Create cache folder if it doesn't exist
+	Str255 dirName = "\pMacPlayer Cache";
+
+	if (FindFolder(kOnSystemDisk, kPreferencesFolderType, kCreateFolder, &_cacheVRefNum, &dirID) == noErr) {
+		FSMakeFSSpec(_cacheVRefNum, dirID, dirName, &dirSpec);
+		Util::GetDirectoryId(_cacheVRefNum, dirID, dirName, &_cacheDirId);
+
+		if (_cacheDirId == 0)
+		{
+			err = FSpDirCreate(&dirSpec, smSystemScript, &_cacheDirId);
+
+			if (err != noErr)
+			{
+				HandleError("Could not create cache directory due to error " + to_string(err));
+			}
+		}
+	}
+	else
+	{
+		HandleError("Could not find Preferences folder.");
+	}
+}
+
+bool SpotifyClient::SaveImage(const FSSpec* imageSpec, const vector<char>& content)
+{
+	OSErr err;
+	short file;
+
+	if ((err = FSpCreate(imageSpec, 'MPLY', 'PICT', 0)) == noErr)
+		err = FSpOpenDF(imageSpec, fsRdWrPerm, &file);
+
+	if (err == noErr) 
+	{
+		if (SetEOF(file, 0L) == noErr) 
+		{
+			long size = content.size();
+			const char* ca = &content[0];
+
+			if (FSWrite(file, &size, ca) == noErr) {
+				FSClose(file);
+				return true;
+			}
+
+			FSClose(file);
+		}
+	}
+	
+	return false;
 }

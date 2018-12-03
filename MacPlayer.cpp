@@ -360,7 +360,7 @@ void ViewNowPlaying()
 
 	if (image != "")
 	{
-		_spotifyClient.GetImage(image, 
+		_spotifyClient.GetImage(image, _currentTrack.albumId,
 			[=](PicHandle picHandle)
 			{
 				Rect pictRect;
@@ -468,12 +468,12 @@ Track GetTrackObject(JsonValue& track)
 	Track trackObj;
 	trackObj.name = track("name").toString();
 	trackObj.uri = track("uri").toString();
-	trackObj.image = GetTrackImage(track);
+	SetTrackImage(track, trackObj);
 
 	return trackObj;
 }
 
-string GetTrackImage(JsonValue& track)
+void SetTrackImage(JsonValue& track, Track& trackObj)
 {
 	JsonValue album = track.child("album");
 
@@ -487,12 +487,11 @@ string GetTrackImage(JsonValue& track)
 
 			if (image == JSON_OBJECT)
 			{
-				return string(image.child("url").toString());
+				trackObj.albumId = string(album("id").toString());
+				trackObj.image = string(image.child("url").toString());
 			}
 		}
 	}
-
-	return "";
 }
 
 void WaitCursor()

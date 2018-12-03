@@ -30,6 +30,7 @@ struct Track
 	string artist;
 	string uri;
 	string image;
+	string albumId;
 };
 
 
@@ -69,6 +70,7 @@ void ViewNowPlaying();
 void UpdateCurrentTrack();
 void PopulateTrackList(JsonValue& root);
 Track GetTrackObject(JsonValue& track);
+void SetTrackImage(JsonValue& track, Track& trackObj);
 
 vector<Track> _tracks;
 vector<Playlist> _playlists;
