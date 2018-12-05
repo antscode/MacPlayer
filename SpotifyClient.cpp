@@ -21,13 +21,15 @@ void SpotifyClient::GetRecentTracks(function<void(JsonValue&)> onComplete)
 {
 	Get(
 		"https://api.spotify.com/v1/me/player/recently-played?limit=10", 
+		false,
 		onComplete);
 }
 
 void SpotifyClient::PlayTrack(const string& contextUri, const string& trackUri, function<void(JsonValue&)> onComplete)
 {
 	Put(
-		"https://api.spotify.com/v1/me/player/play",
+		"https://api.spotify.com/v1/me/player/play", 
+		false,
 		"{ \"context_uri\": \"" + contextUri + "\", \"offset\": { \"uri\": \"" + trackUri + "\" } }",
 		onComplete);
 }
@@ -36,6 +38,7 @@ void SpotifyClient::NextTrack(function<void(JsonValue&)> onComplete)
 {
 	Post(
 		"https://api.spotify.com/v1/me/player/next",
+		false,
 		"",
 		onComplete);
 }
@@ -43,7 +46,8 @@ void SpotifyClient::NextTrack(function<void(JsonValue&)> onComplete)
 void SpotifyClient::PreviousTrack(function<void(JsonValue&)> onComplete)
 {
 	Post(
-		"https://api.spotify.com/v1/me/player/previous",
+		"https://api.spotify.com/v1/me/player/previous", 
+		false,
 		"",
 		onComplete);
 }
@@ -52,6 +56,7 @@ void SpotifyClient::GetDevices(function<void(JsonValue&)> onComplete)
 {
 	Get(
 		"https://api.spotify.com/v1/me/player/devices",
+		false,
 		onComplete);
 }
 
@@ -59,6 +64,7 @@ void SpotifyClient::GetPlaylists(function<void(JsonValue&)> onComplete)
 {
 	Get(
 		"https://api.spotify.com/v1/me/playlists",
+		false,
 		onComplete);
 }
 
@@ -68,6 +74,7 @@ void SpotifyClient::GetPlaylistTracks(const string& playlistId, function<void(Js
 		"https://api.spotify.com/v1/playlists/" + playlistId + "/tracks?"
 		"limit=20&"
 		"fields=items(track(name,uri,album(id,images(url)),artists(name)))",
+		false,
 		onComplete);
 }
 
@@ -140,10 +147,20 @@ void SpotifyClient::GetImage(const string& image, const string& albumId, functio
 	}
 }
 
-void SpotifyClient::GetCurrentlyPlaying(function<void(JsonValue&)> onComplete)
+void SpotifyClient::GetPlayerState(function<void(JsonValue&)> onComplete)
 {
 	Get(
 		"https://api.spotify.com/v1/me/player",
+		false,
+		onComplete);
+}
+
+void SpotifyClient::Play(function<void(JsonValue&)> onComplete)
+{
+	Put(
+		"https://api.spotify.com/v1/me/player/play",
+		false,
+		"",
 		onComplete);
 }
 
@@ -151,108 +168,129 @@ void SpotifyClient::Pause(function<void(JsonValue&)> onComplete)
 {
 	Put(
 		"https://api.spotify.com/v1/me/player/pause",
+		false,
 		"",
 		onComplete);
 }
 
-void SpotifyClient::Get(string uri, function<void(JsonValue&)> onComplete)
+void SpotifyClient::Get(string uri, bool debug, function<void(JsonValue&)> onComplete)
 {
-	Request(uri, "", onComplete, bind(&SpotifyClient::DoGet, this) , false);
+	Request(uri, "", debug, onComplete, bind(&SpotifyClient::DoGet, this, _1) , false);
 }
 
-void SpotifyClient::Post(string uri, string content, function<void(JsonValue&)> onComplete)
+void SpotifyClient::Post(string uri, bool debug, string content, function<void(JsonValue&)> onComplete)
 {
-	Request(uri, content, onComplete, bind(&SpotifyClient::DoPost, this), false);
+	Request(uri, content, debug, onComplete, bind(&SpotifyClient::DoPost, this, _1), false);
 }
 
-void SpotifyClient::Put(string uri, string content, function<void(JsonValue&)> onComplete)
+void SpotifyClient::Put(string uri, bool debug, string content, function<void(JsonValue&)> onComplete)
 {
-	Request(uri, content, onComplete, bind(&SpotifyClient::DoPut, this), false);
+	Request(uri, content, debug, onComplete, bind(&SpotifyClient::DoPut, this, _1), false);
 }
 
 void SpotifyClient::Request(
 	string uri, 
 	string content, 
+	bool debug,
 	function<void(JsonValue&)> onComplete,
-	function<void()> doRequest, 
+	function<void(int)> doRequest, 
 	bool refreshed)
 {
-	_uri = uri;
-	_content = content;
-	_onComplete = onComplete; 
-	_doRequest = doRequest;
-	_refreshed = refreshed;
+	SpotifyRequest request;
+
+	request.Uri = uri;
+	request.Content = content;
+	request.OnComplete = onComplete;
+	request.DoRequest = doRequest;
+	request.Refreshed = false;
+	request.Debug = debug;
+
+	_requestId++;
+	_requests.insert(pair<int, SpotifyRequest>(_requestId, request));
 	_wifiLib->SetAuthorization("Bearer " + AccessToken);
 
-	doRequest();
+	doRequest(_requestId);
 }
 
-void SpotifyClient::DoGet()
+void SpotifyClient::DoGet(int requestId)
 {
-	_wifiLib->Get(_uri, bind(&SpotifyClient::HandleResponse, this, _1));
+	SpotifyRequest request = _requests[requestId];
+	_wifiLib->Get(request.Uri, bind(&SpotifyClient::HandleResponse, this, _1), requestId);
 }
 
-void SpotifyClient::DoPost()
+void SpotifyClient::DoPost(int requestId)
 {
-	_wifiLib->Post(_uri, _content, bind(&SpotifyClient::HandleResponse, this, _1));
+	SpotifyRequest request = _requests[requestId];
+	_wifiLib->Post(request.Uri, request.Content, bind(&SpotifyClient::HandleResponse, this, _1), requestId);
 }
 
-void SpotifyClient::DoPut()
+void SpotifyClient::DoPut(int requestId)
 {
-	_wifiLib->Put(_uri, _content, bind(&SpotifyClient::HandleResponse, this, _1));
+	SpotifyRequest request = _requests[requestId];
+	_wifiLib->Put(request.Uri, request.Content, bind(&SpotifyClient::HandleResponse, this, _1), requestId);
 }
 
 void SpotifyClient::HandleResponse(MacWifiResponse& response)
 {
+	SpotifyRequest request = _requests[response.Id];
+
 	if (response.Success)
 	{
+		if (request.Debug)
+		{
+			Util::Debug(response.Content + "\r\r");
+		}
+
 		if (response.StatusCode >= 200 &&
 			response.StatusCode <= 299)
 		{
 			if (response.StatusCode != 204)
 			{
 				// All good, parse json
-				JsonAllocator allocator;
+				JsonAllocator allocator; 
 				JsonParseStatus status = jsonParse((char*)response.Content.c_str(), _root, allocator);
 
 				if (status == JSON_PARSE_OK)
 				{
-					_onComplete(_root);
+					request.OnComplete(_root);
 				}
 				else
-				{
-					HandleError(_uri + ": Error parsing response.");
+				{ 
+					HandleError(request.Uri + ": Error parsing response.");
 				}
 			}
 			else
 			{
 				// No content
 				JsonValue nullValue = JsonValue();
-				_onComplete(nullValue);
+				request.OnComplete(nullValue);
 			}
 		}
 		else if (response.StatusCode == 401)
 		{
-			if (!_refreshed)
+			if (!request.Refreshed)
 			{
 				// Expired access token, so refresh it and try again
-				RefreshAccessToken();
+				RefreshAccessToken(response.Id);
+				return;
 			}
 			else
 			{
 				// Authentication still failing after a refresh, give up
-				HandleError(_uri + ": Authentication error.");
+				HandleError(request.Uri + ": Authentication error.");
 			}
 		}
 		else
 		{
-			HandleError(_uri + ": HTTP " + to_string(response.StatusCode) + " response.");
+			HandleError(request.Uri + ": HTTP " + to_string(response.StatusCode) + " response.");
 		}
 	}
 	else
 	{
-		HandleError(_uri + ": " + response.ErrorMsg);
+		HandleError(request.Uri + ": " + response.ErrorMsg);
 	}
+
+	_requests.erase(response.Id);
 }
 
 void SpotifyClient::Login(function<void(LoginResponse)> onComplete)
@@ -328,7 +366,7 @@ void SpotifyClient::Login(function<void(LoginResponse)> onComplete)
 	}
 }
 
-void SpotifyClient::RefreshAccessToken()
+void SpotifyClient::RefreshAccessToken(int requestId)
 {
 	const std::string authHeader = Keys::SpotifyClientId + ":" + Keys::SpotifyClientSecret;
 	std::string encoded = base64_encode(reinterpret_cast<const unsigned char*>(authHeader.c_str()), authHeader.length());
@@ -355,7 +393,9 @@ void SpotifyClient::RefreshAccessToken()
 				_prefs->Save();
 
 				_wifiLib->SetAuthorization("Bearer " + AccessToken);
-				_doRequest();
+
+				SpotifyRequest request = _requests[requestId];
+				request.DoRequest(requestId);
 			}
 			else
 			{

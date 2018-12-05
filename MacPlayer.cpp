@@ -4,6 +4,7 @@
 #include <Quickdraw.h>
 #include <Menus.h>
 #include <ToolUtils.h>
+#include <Timer.h>
 #include <string.h>
 #include <gason/gason.hpp>
 #include "MacPlayer.h"
@@ -13,8 +14,6 @@
 DialogPtr _dialog;
 
 using namespace gason;
-
-string GetTrackImage(JsonValue& track);
 
 int main()
 {	
@@ -95,6 +94,10 @@ void EventLoop()
 		if (WaitNextEvent(everyEvent, &event, 0, NULL))
 		{
 			DoEvent(&event);
+		}
+		else
+		{ 
+			PollPlayerState();
 		}
 	}
 }
@@ -297,6 +300,28 @@ void HandlePlayerContent(short item)
 			break;
 		}
 			
+		case 3:
+		{
+			if (_playerState.isPlaying)
+			{
+				_spotifyClient.Pause(
+					[=](JsonValue& root)
+					{
+						
+					});
+			}
+			else
+			{
+				_spotifyClient.Play(
+					[=](JsonValue& root)
+					{
+
+					});
+			}
+
+			break;
+		}
+
 		case 4:
 		{
 			_spotifyClient.PreviousTrack(
@@ -333,7 +358,7 @@ void PlayTrack()
 
 void UpdateCurrentTrack()
 {
-	_spotifyClient.GetCurrentlyPlaying(
+	_spotifyClient.GetPlayerState(
 		[=](JsonValue& root)
 		{
 			JsonValue track = root("item");
@@ -353,6 +378,7 @@ void UpdateCurrentTrack()
 
 void ViewNowPlaying()
 {
+	_viewNowPlaying = true;
 	HideDialogItem(_dialog, 2);
 	HideControl((**_trackList).vScroll);
 
@@ -414,6 +440,7 @@ void PopulateTrackList(JsonValue& root)
 
 	int rowNum = (**_trackList).dataBounds.bottom;
 
+	_viewNowPlaying = false;
 	ShowDialogItem(_dialog, 2);
 	ShowControl((**_trackList).vScroll);
 
@@ -625,6 +652,10 @@ void InitPlayer(DialogPtr dialog)
 {
 	ModeInit(dialog);
 	WaitCursor();
+	Microseconds(&_lastPollTime);
+
+	_currentTrack.uri = "";
+	_playerState.isPlaying = false;
 
 	// Get available devices
 	_spotifyClient.GetDevices(
@@ -687,6 +718,61 @@ void GetPlaylists(DialogPtr dialog)
 			ModePlayer(dialog);
 			InitCursor();
 		});
+}
+
+void PollPlayerState()
+{
+	UnsignedWide now;
+	Microseconds(&now);
+
+	double diffMs = (Util::MicrosecondToDouble(&now) - Util::MicrosecondToDouble(&_lastPollTime)) / 1000;
+
+	if (diffMs > mPollFrequencyMs)
+	{
+		_lastPollTime = now;
+		_spotifyClient.GetPlayerState(
+			[=](JsonValue& root)
+			{
+				bool isPlaying = root("is_playing").getTag() == JSON_TRUE;
+
+				if (isPlaying != _playerState.isPlaying)
+				{
+					_playerState.isPlaying = isPlaying;
+
+					int iconId = isPlaying ? 136 : 128;
+
+					DialogItemType itemType;
+					Handle tempHandle;
+					Rect itemRect;
+					Handle iconHandle = (Handle)GetCIcon(iconId);
+					GetDialogItem(_dialog, 3, &itemType, &tempHandle, &itemRect);
+
+					SetDialogItem(_dialog, 3, itemType, iconHandle, &itemRect);
+
+					InvalRect(&itemRect);
+					UpdateDialog(_dialog, _dialog->visRgn);
+				}
+
+				if (_viewNowPlaying)
+				{
+					if (root("item").getTag() == JSON_OBJECT)
+					{
+						JsonValue track = root("item");
+
+						if (track("uri").getTag() == JSON_STRING)
+						{
+							string trackUri = track("uri").toString();
+
+							if (trackUri != _currentTrack.uri)
+							{
+								_currentTrack = GetTrackObject(track);
+								ViewNowPlaying();
+							}
+						}
+					}
+				}
+			});
+	}	
 }
 
 void HandleUpdate(EventRecord *eventPtr)

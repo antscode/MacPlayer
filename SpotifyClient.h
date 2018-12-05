@@ -1,4 +1,5 @@
 #include <string>
+#include <map>
 #include <MacWifi/MacWifiLib.h>
 #include <gason/gason.hpp>
 #include "Prefs.h"
@@ -30,10 +31,22 @@ class SpotifyClient
 		void GetPlaylists(function<void(JsonValue&)> onComplete);
 		void GetPlaylistTracks(const string& playlistId, function<void(JsonValue&)> onComplete);
 		void GetImage(const string& image, const string& albumId, function<void(PicHandle)> onComplete);
-		void GetCurrentlyPlaying(function<void(JsonValue&)> onComplete);
+		void GetPlayerState(function<void(JsonValue&)> onComplete);
+		void Play(function<void(JsonValue&)> onComplete);
 		void Pause(function<void(JsonValue&)> onComplete);
 
 	private:
+		class SpotifyRequest
+		{
+			public:
+				string Uri;
+				string Content;
+				function<void(JsonValue&)> OnComplete;
+				function<void(int)> DoRequest;
+				bool Refreshed;
+				bool Debug;
+		};
+
 		const string _permissions =
 			"user-read-playback-state "
 			"user-modify-playback-state "
@@ -43,29 +56,28 @@ class SpotifyClient
 
 		MacWifiLib* _wifiLib;
 		Prefs* _prefs;
-		JsonValue _root;
-		function<void(JsonValue&)> _onComplete;
-		function<void()> _doRequest;
-		string _uri, _content;
-		bool _refreshed;
+		JsonValue _root;	
 		short _cacheVRefNum;
 		long _cacheDirId;
+		map<int, SpotifyRequest> _requests;
+		int _requestId = 0;
 
-		void Get(string uri, function<void(JsonValue&)> onComplete);
-		void Post(string uri, string content, function<void(JsonValue&)> onComplete);
-		void Put(string uri, string content, function<void(JsonValue&)> onComplete);
+		void Get(string uri, bool debug, function<void(JsonValue&)> onComplete);
+		void Post(string uri, bool debug, string content, function<void(JsonValue&)> onComplete);
+		void Put(string uri, bool debug, string content, function<void(JsonValue&)> onComplete);
 		void Request(
 			string uri,
 			string content,
+			bool debug,
 			function<void(JsonValue&)> onComplete,
-			function<void()> doRequest,
+			function<void(int)> doRequest,
 			bool refreshed);
 
-		void DoGet();
-		void DoPost();
-		void DoPut();
+		void DoGet(int requestId);
+		void DoPost(int requestId);
+		void DoPut(int requestId);
 		void HandleResponse(MacWifiResponse& response);
-		void RefreshAccessToken();
+		void RefreshAccessToken(int requestId);
 		void HandleError(const string& errorMsg);
 		void InitCache();
 		bool SaveImage(const FSSpec* imageSpec, const vector<char>& content);

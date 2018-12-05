@@ -8,6 +8,7 @@
 #include "SpotifyClient.h"
 
 const short mAppleMenu = 128;
+const double mPollFrequencyMs = 5000;
 
 enum UIState
 {
@@ -33,12 +34,20 @@ struct Track
 	string albumId;
 };
 
+struct PlayerState
+{
+	bool isPlaying;
+};
 
 bool _run = true;
 UIState _uiState = Login;
 MacWifiLib _wifiLib;
 Prefs _prefs;
 SpotifyClient _spotifyClient(&_wifiLib, &_prefs);
+UnsignedWide _lastPollTime;
+PlayerState _playerState;
+bool _viewNowPlaying = false;
+
 
 int main();
 void InitToolBox();
@@ -71,6 +80,7 @@ void UpdateCurrentTrack();
 void PopulateTrackList(JsonValue& root);
 Track GetTrackObject(JsonValue& track);
 void SetTrackImage(JsonValue& track, Track& trackObj);
+void PollPlayerState();
 
 vector<Track> _tracks;
 vector<Playlist> _playlists;
