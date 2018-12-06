@@ -1,12 +1,8 @@
 /*
 *
-*     Source  - AlternateCDEF.c
 *     Author  - Alexander S. Colwell,
 *               Copyright (C) 1988, 1989
-*     Purpose - This is a dual-arrow scroll bar control
-*               definition procedure. It is similiar to
-*               the standard scroll bar except this has
-*               two arrow indicators on both ends.
+*               Modified by Anthony Super, 2018
 */
 
 #include <QuickDraw.h>
@@ -18,7 +14,6 @@ extern "C"
 {
 	typedef struct {          /* Dual Control          */
 		short        hasColor;    /* Has color monitor flag*/
-		short        altButton;   /* Using alternate button*/
 		Rect         thumb;       /* Thumb rectangle area  */
 		Rect         cThumb;      /* Current thmb rect area*/
 		PolyHandle   up;          /* Up button handle      */
@@ -58,18 +53,10 @@ extern "C"
 /* Control’s macro procs */
 #define DSFrameHUpBtn()                                \
         DSDrawHBtn(dPtr,dPtr->up,FALSE)
-#define DSFrameHDownBtn()                              \
-        DSDrawHBtn(dPtr,dPtr->down,FALSE)
-#define DSFrameLUpBtn()                                \
-        DSDrawLBtn(dPtr,dPtr->up,FALSE)
 #define DSFrameLDownBtn()                              \
         DSDrawLBtn(dPtr,dPtr->down,FALSE)
 #define DSFillHUpBtn()                                 \
         DSDrawHBtn(dPtr,dPtr->up,TRUE)
-#define DSFillHDownBtn()                               \
-        DSDrawHBtn(dPtr,dPtr->down,TRUE)
-#define DSFillLUpBtn()                                 \
-        DSDrawLBtn(dPtr,dPtr->up,TRUE)
 #define DSFillLDownBtn()                               \
         DSDrawLBtn(dPtr,dPtr->down,TRUE)
 
@@ -157,8 +144,6 @@ extern "C"
 						//DSFrameBody((long)&cPtr->contrlRect);/* Init scroll */
 						//DSFrameButtons(dPtr);/* Frame the buttons     */
 						DSFrameHUpBtn();
-						//DSFrameHDownBtn();
-						//DSFrameLUpBtn();
 						DSFrameLDownBtn();
 						DSDrawThumb(dPtr, theControl); break;
 					case 129:             /* Value/Min/Max changed */
@@ -170,36 +155,36 @@ extern "C"
 					case kControlPageDownPart:
 						DSDrawThumb(dPtr, theControl); break;
 					case kControlUpButtonPart:      /* Hilite high up button */
-						if (dPtr->altButton) {/* Check if alt button  */
-							if (cPtr->contrlHilite == 0 ||
-								cPtr->contrlMin == cPtr->contrlMax)
-								DSFrameLUpBtn();
-							else
-								DSFillLUpBtn();
-						}
-						else {
+						//if (dPtr->altButton) {/* Check if alt button  */
+						//	if (cPtr->contrlHilite == 0 ||
+						//		cPtr->contrlMin == cPtr->contrlMax)
+						//		DSFrameLUpBtn();
+						//	else
+						//		DSFillLUpBtn();
+						//}
+						//else {
 							if (cPtr->contrlHilite == 0 ||
 								cPtr->contrlMin == cPtr->contrlMax)
 								DSFrameHUpBtn();
 							else
 								DSFillHUpBtn();
-						}
+						//}
 						break;
 					case kControlDownButtonPart:    /* Hilite high down buttn*/
-						if (dPtr->altButton) {/* Check if alt button  */
+						//if (dPtr->altButton) {/* Check if alt button  */
 							if (cPtr->contrlHilite == 0 ||
 								cPtr->contrlMin == cPtr->contrlMax)
 								DSFrameLDownBtn();
 							else
 								DSFillLDownBtn();
-						}
+						/*}
 						else {
 							if (cPtr->contrlHilite == 0 ||
 								cPtr->contrlMin == cPtr->contrlMax)
 								DSFrameHDownBtn();
 							else
 								DSFillHDownBtn();
-						}
+						}*/
 					}
 				}
 			}
@@ -261,7 +246,6 @@ extern "C"
 				dPtr->ltGrayPat[0] = 0x88228822L;
 				dPtr->ltGrayPat[1] = 0x88228822L;
 				dPtr->hasColor = FALSE; /* Set to black & white  */
-				dPtr->altButton = FALSE;/* Not using alt button  */
 										/* Check SysEnvirons OK  */
 				if ((long)NGetTrapAddress(SysEnvironsTrap, OSTrap) !=
 					(long)NGetTrapAddress(UnknownTrap, ToolTrap)) {
@@ -382,9 +366,9 @@ extern "C"
 				OffsetPoly(pHdl, hBLen, 0);
 			}
 			else {                   /* Nope,  vert position  */
-				MoveTo(1, 0);
-				MacLineTo(tmp2 * 2 + 1, 0);
-				MacLineTo(tmp1, tmp1);
+				//MoveTo(1, 0);
+				MoveTo(tmp2 * 2 + 1, 0);
+				MacLineTo(tmp1, tmp1-1);
 				MacLineTo(1, 0);
 				OffsetPoly(pHdl, 0, hBLen);
 			}
@@ -565,35 +549,39 @@ extern "C"
 		MacOffsetRect(&tRect, cRect.left, cRect.top);
 		if (MacPtInRect(pt, &tRect)) { /* Check if high up buttn*/
 			status = kControlUpButtonPart;      /* Set high up button    */
-			dPtr->altButton = FALSE;  /* Not using alt button  */
+			//dPtr->altButton = FALSE;  /* Not using alt button  */
 		}
-		if (!status) {             /* Check if prev part    */
-								   /* Adjust for down button*/
-			MacOffsetRect(&tRect, dPtr->hFactor * dPtr->hBLen,
-				dPtr->vFactor * dPtr->hBLen);
-			if (MacPtInRect(pt, &tRect)) {/* Check if high down    */
-				status = kControlDownButtonPart;   /* Set high down button  */
-				dPtr->altButton = FALSE;  /* Not using alt button  */
-			}
-		}
-		if (!status) {             /* Check if prev part    */
-			tRect = bRect;            /* Set the temp rect area*/
-			offset = dPtr->sLen - dPtr->bLen;
-			/* Offset where low up   */
-			MacOffsetRect(&tRect, cRect.left + dPtr->hFactor*offset,
-				cRect.top + dPtr->vFactor*offset);
-			if (MacPtInRect(pt, &tRect)) {/* Check if low up button*/
-				status = kControlUpButtonPart;     /* Set low up button     */
-				dPtr->altButton = TRUE; /* Using alt button       */
-			}
-		}
+		//if (!status) {             /* Check if prev part    */
+		//						   /* Adjust for down button*/
+		//	MacOffsetRect(&tRect, dPtr->hFactor * dPtr->hBLen,
+		//		dPtr->vFactor * dPtr->hBLen);
+		//	if (MacPtInRect(pt, &tRect)) {/* Check if high down    */
+		//		status = kControlDownButtonPart;   /* Set high down button  */
+		//		dPtr->altButton = FALSE;  /* Not using alt button  */
+		//	}
+		//}
+		//if (!status) {             /* Check if prev part    */
+		//	tRect = bRect;            /* Set the temp rect area*/
+		//	offset = dPtr->sLen - dPtr->bLen;
+		//	/* Offset where low up   */
+		//	MacOffsetRect(&tRect, cRect.left + dPtr->hFactor*offset,
+		//		cRect.top + dPtr->vFactor*offset);
+		//	if (MacPtInRect(pt, &tRect)) {/* Check if low up button*/
+		//		status = kControlUpButtonPart;     /* Set low up button     */
+		//		dPtr->altButton = TRUE; /* Using alt button       */
+		//	}
+		//}
 		if (!status) {             /* Check if prev part    */
 								   /* Offset where low down */
+			tRect = bRect;
+			offset = dPtr->sLen - dPtr->bLen;
+				MacOffsetRect(&tRect, cRect.left + dPtr->hFactor*offset,
+					cRect.top + dPtr->vFactor*offset);
 			MacOffsetRect(&tRect, dPtr->hFactor * dPtr->hBLen,
 				dPtr->vFactor * dPtr->hBLen);
 			if (MacPtInRect(pt, &tRect)) {/* Check if the low down */
 				status = kControlDownButtonPart;  /* Set low down button    */
-				dPtr->altButton = TRUE; /* Using alt button       */
+				//dPtr->altButton = TRUE; /* Using alt button       */
 			}
 
 		}

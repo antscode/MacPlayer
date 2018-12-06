@@ -95,15 +95,13 @@ void SpotifyClient::GetImage(const string& image, const string& albumId, functio
 		long size;
 		GetEOF(file, &size);
 
-		Ptr buffer = NewPtr(size);
-		err = FSRead(file, &size, buffer);
+		err = FSRead(file, &size, _imageBuffer);
 
 		if (err == noErr || err == eofErr)
 		{
-			char* pict = &buffer[512]; // Skip 512-byte PICT1 header
-			PicHandle imageHandle = (PicHandle)&pict;
-			onComplete(imageHandle);
-			DisposeHandle((Handle)imageHandle);
+			_imagePtr = &_imageBuffer[512];// Skip 512-byte PICT1 header
+			ActiveTrackImage = (PicHandle)&_imagePtr; 
+			onComplete(ActiveTrackImage);
 		}
 		else
 		{
@@ -112,7 +110,6 @@ void SpotifyClient::GetImage(const string& image, const string& albumId, functio
 		}
 
 		FSClose(file);
-		DisposePtr(buffer);
 	}
 	else
 	{
@@ -128,15 +125,14 @@ void SpotifyClient::GetImage(const string& image, const string& albumId, functio
 				
 				if (response.Success)
 				{
-					vector<char> v(response.Content.begin(), response.Content.end());
+					response.Content.copy(_imageBuffer, response.Content.size());
 
 					// Save image to cache
-					SaveImage(&imageSpec, v);
+					SaveImage(&imageSpec, response.Content.size());
 
-					char* pict = &v[512]; // Skip 512-byte PICT1 header
-					PicHandle imageHandle = (PicHandle)&pict;
-					onComplete(imageHandle);
-					DisposeHandle((Handle)imageHandle);
+					_imagePtr = &_imageBuffer[512]; // Skip 512-byte PICT1 header
+					ActiveTrackImage = (PicHandle)&_imagePtr;
+					onComplete(ActiveTrackImage);
 				}
 				else
 				{
@@ -448,7 +444,7 @@ void SpotifyClient::InitCache()
 	}
 }
 
-bool SpotifyClient::SaveImage(const FSSpec* imageSpec, const vector<char>& content)
+bool SpotifyClient::SaveImage(const FSSpec* imageSpec, long size)
 {
 	OSErr err;
 	short file;
@@ -460,8 +456,7 @@ bool SpotifyClient::SaveImage(const FSSpec* imageSpec, const vector<char>& conte
 	{
 		if (SetEOF(file, 0L) == noErr) 
 		{
-			long size = content.size();
-			const char* ca = &content[0];
+			const char* ca = &_imageBuffer[0];
 
 			if (FSWrite(file, &size, ca) == noErr) {
 				FSClose(file);

@@ -389,23 +389,27 @@ void ViewNowPlaying()
 		_spotifyClient.GetImage(image, _currentTrack.albumId,
 			[=](PicHandle picHandle)
 			{
-				Rect pictRect;
-				MacSetRect(&pictRect, 127, 0, 377, 250);
-
-				if (picHandle != nil)
-				{
-					ForeColor(whiteColor);
-					PaintRect(&pictRect);
-					DrawPicture(picHandle, &pictRect);
-					DisposeHandle((Handle)picHandle);
-				}
-				else
-				{
-					// Error getting image, just draw black
-					ForeColor(blackColor);
-					PaintRect(&pictRect);
-				}
+				DrawTrackImage();
 			});
+	}
+}
+
+void DrawTrackImage()
+{
+	Rect pictRect;
+	MacSetRect(&pictRect, 127, 0, 377, 250);
+
+	if (_spotifyClient.ActiveTrackImage != nil)
+	{
+		ForeColor(whiteColor);
+		PaintRect(&pictRect);
+		DrawPicture(_spotifyClient.ActiveTrackImage, &pictRect);
+	}
+	else
+	{
+		// Error getting image, just draw black
+		ForeColor(blackColor);
+		PaintRect(&pictRect);
 	}
 }
 
@@ -782,6 +786,24 @@ void HandleUpdate(EventRecord *eventPtr)
 	if (windowPtr == FrontWindow())
 	{
 		BeginUpdate(windowPtr);
+
+		if (_navList != 0)
+		{
+			LUpdate(_dialog->visRgn, _navList);
+		}
+
+		if (_viewNowPlaying)
+		{
+			DrawTrackImage();
+		}
+		else
+		{
+			if (_trackList != 0)
+			{
+				LUpdate(_dialog->visRgn, _trackList);
+			}
+		}
+
 		UpdateDialog(windowPtr, windowPtr->visRgn);
 		EndUpdate(windowPtr);
 	}

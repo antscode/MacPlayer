@@ -21,6 +21,7 @@ class SpotifyClient
 {
 	public:
 		string AccessToken, RefreshToken;
+		PicHandle ActiveTrackImage;
 		SpotifyClient(MacWifiLib* wifiLib, Prefs* prefs);
 		void Login(function<void(LoginResponse)> onComplete);
 		void GetRecentTracks(function<void(JsonValue&)> onComplete);
@@ -61,6 +62,8 @@ class SpotifyClient
 		long _cacheDirId;
 		map<int, SpotifyRequest> _requests;
 		int _requestId = 0;
+		char _imageBuffer[20000];
+		char* _imagePtr;
 
 		void Get(string uri, bool debug, function<void(JsonValue&)> onComplete);
 		void Post(string uri, bool debug, string content, function<void(JsonValue&)> onComplete);
@@ -80,7 +83,7 @@ class SpotifyClient
 		void RefreshAccessToken(int requestId);
 		void HandleError(const string& errorMsg);
 		void InitCache();
-		bool SaveImage(const FSSpec* imageSpec, const vector<char>& content);
+		bool SaveImage(const FSSpec* imageSpec, long size);
 };
 
 #endif

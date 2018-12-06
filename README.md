@@ -18,4 +18,5 @@ Once the above libraries are built and installed, execute these commands from th
 
 ## Credits
 * MacPlayer is built using [Retro68](https://github.com/autc04/Retro68).
+* Custom scrollbars based on code snippet by Alexander S. Colwell, 1988.
 * Cursive font in logo is [streamster](https://befonts.com/streamster-font.html) by Youssef Habchi

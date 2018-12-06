@@ -81,13 +81,14 @@ void PopulateTrackList(JsonValue& root);
 Track GetTrackObject(JsonValue& track);
 void SetTrackImage(JsonValue& track, Track& trackObj);
 void PollPlayerState();
+void DrawTrackImage();
 
 vector<Track> _tracks;
 vector<Playlist> _playlists;
 Track _currentTrack;
 string _currentContext;
 
-ListHandle _navList, _trackList;
+ListHandle _navList = 0, _trackList = 0;
 ListHandle CreateList(
 	WindowPtr windowPtr,
 	Rect rect,
