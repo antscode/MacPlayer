@@ -144,7 +144,7 @@ resource 'DITL' (128, purgeable) {
 resource 'DITL' (129, purgeable) {
 	{ 
 		/* Nav List */
-		{ 0, 15, 250, 100+10 },
+		{ 0, 5, 250, 100+10 },
 		UserItem { enabled };
 
 		/* Track List */

@@ -439,8 +439,6 @@ void PopulateTrackList(JsonValue& root)
 	JsonValue track;
 	JsonValue artists;
 	Cell cell;
-	char* trackName;
-	char* artist;
 
 	int rowNum = (**_trackList).dataBounds.bottom;
 
@@ -458,26 +456,25 @@ void PopulateTrackList(JsonValue& root)
 	while (it.isValid())
 	{
 		JsonValue father = it->value;
-
+		ListRow row;
+		
 		track = father("track");
-		trackName = track("name").toString();
 		artists = track("artists");
-		artist = artists[0]("name").toString();
 
-		char* pLabel = (char*)Util::CtoPStr(trackName);
-		Str255 label;
-		strncpy((char*)label, pLabel, 256);
+		row.CellCount = 2;
+
+		char* pTrackName = (char*)Util::CtoPStr(track("name").toString());
+		strncpy((char*)row.Cells[0].Content, pTrackName, 256);
+
+		row.Cells[0].WidthPercent = 0.5;
+
+		char* pArtist = (char*)Util::CtoPStr(artists[0]("name").toString());
+		strncpy((char*)row.Cells[1].Content, pArtist, 256);
+		row.Cells[1].WidthPercent = 0.5;
 
 		rowNum = LAddRow(1, rowNum, _trackList);
 		SetPt(&cell, 0, rowNum);
-		LSetCell(label, sizeof(Str255), cell, _trackList);
-
-		char* pArtist = (char*)Util::CtoPStr(artist);
-		Str255 artist255;
-		strncpy((char*)artist255, pArtist, 256);
-
-		SetPt(&cell, 1, rowNum);
-		LSetCell(artist255, sizeof(Str255), cell, _trackList);
+		LSetCell(&row, sizeof(ListRow), cell, _trackList);
 
 		_tracks.push_back(GetTrackObject(track));
 
@@ -582,7 +579,7 @@ void ModePlayer(DialogPtr dialog)
 
 	// Init track list
 	GetDialogItem(dialog, 2, &type, &itemH, &box);
-	_trackList = CreateList(dialog, box, 2, 128, 0, 0);
+	_trackList = CreateList(dialog, box, 1, 128, 0, 0);
 
 	UpdateDialog(dialog, dialog->visRgn);
 }
@@ -622,34 +619,43 @@ void PopulateNavList(ListHandle list)
 		"Artists"
 	};
 
+	LSetDrawingMode(false, list);
+
 	int rowNum = (**list).dataBounds.bottom;
 	Cell cell;
+	ListRow row;
 
 	for (const auto& item : items) 
 	{
+		row.CellCount = 1;
+
 		rowNum = LAddRow(1, rowNum, list);
 		SetPt(&cell, 0, rowNum);
 
 		char* pLabel = (char*)Util::StrToPStr(item);
-		Str255 label;
-		strncpy((char*)label, pLabel, 256);
+		strncpy((char*)row.Cells[0].Content, pLabel, 256);
+		row.Cells[0].WidthPercent = 1;
 
-		LSetCell(label, sizeof(Str255), cell, list);
+		LSetCell(&row, sizeof(ListRow), cell, list);
 		rowNum = rowNum + 1;
 	}
 
 	for (const auto& playlist : _playlists)
 	{
+		row.CellCount = 1;
+
 		rowNum = LAddRow(1, rowNum, list);
 		SetPt(&cell, 0, rowNum);
 
 		char* pLabel = (char*)Util::StrToPStr(playlist.name);
-		Str255 label;
-		strncpy((char*)label, pLabel, 256);
+		strncpy((char*)row.Cells[0].Content, pLabel, 256);
+		row.Cells[0].WidthPercent = 1;
 
-		LSetCell(label, sizeof(Str255), cell, list);
+		LSetCell(&row, sizeof(ListRow), cell, list);
 		rowNum = rowNum + 1;
 	}
+
+	LSetDrawingMode(true, list);
 }
 
 void InitPlayer(DialogPtr dialog)
