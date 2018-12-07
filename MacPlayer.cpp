@@ -38,7 +38,7 @@ void InitToolBox()
 
 void ShowMainWindow()
 {
-	_dialog = GetNewDialog(128, 0, (WindowPtr)-1);
+	_dialog = GetNewDialog(kPlayerDialog, 0, (WindowPtr)-1);
 	MacSetPort(_dialog);
 
 	if (_spotifyClient.AccessToken.size() > 0)
@@ -76,11 +76,11 @@ void MenuInit()
 	OSErr myErr;
 	long feature;
 	
-	menuBar = GetNewMBar(128);
+	menuBar = GetNewMBar(kPlayerMenubar);
 	SetMenuBar(menuBar);
 	DisposeHandle(menuBar);
 
-	AppendResMenu(GetMenuHandle(128), 'DRVR');
+	AppendResMenu(GetMenuHandle(kPlayerMenubar), 'DRVR');
 
 	MacDrawMenuBar();
 }
@@ -95,7 +95,7 @@ void EventLoop()
 		{
 			DoEvent(&event);
 		}
-		else
+		else if(_uiState == Player)
 		{ 
 			PollPlayerState();
 		}
@@ -121,14 +121,6 @@ void DoEvent(EventRecord *eventPtr)
 
 		case updateEvt:
 			HandleUpdate(eventPtr);
-			break;
-
-		case activateEvt:
-			HandleActivate(eventPtr);
-			break;
-
-		case osEvt:
-			HandleOSEvt(eventPtr);
 			break;
 
 		case kHighLevelEvent:
@@ -165,11 +157,20 @@ void HandleMouseDown(EventRecord *eventPtr)
 		case inGoAway:
 			if (TrackGoAway(window, eventPtr->where))
 			{
-				_spotifyClient.Pause(
-					[](JsonValue& root)
-					{
-						_run = false;
-					});
+				CloseDialog(_dialog);
+
+				if (_playerState.isPlaying)
+				{
+					_spotifyClient.Pause(
+						[](JsonValue& root)
+						{
+							_run = false;
+						});
+				}
+				else
+				{
+					_run = false;
+				}
 			}
 			break;
 	}
@@ -236,7 +237,7 @@ void HandleLoginContent(short item)
 
 	switch (item)
 	{
-		case 2:
+		case kPlayerLoginButton:
 			_spotifyClient.Login(
 				[=](LoginResponse response)
 				{
@@ -259,31 +260,23 @@ void HandlePlayerContent(short item)
 
 	switch (item)
 	{
-		case 1:
+		case kPlayerNavList:
 		{
 			// Nav List
 			GetMouse(&pt);
 			bool dblClick = LClick(pt, 0, _navList);
 			Cell cell = LLastClick(_navList);
 
-			Str255 cellDataPtr;
-			short dataLen = sizeof(Str255);
-			LGetCell(cellDataPtr, &dataLen, cell, _navList);
-
 			short cellIndex = cell.v;
 
-			if (cellIndex > 4) // FIX ME!
+			if (cellIndex < _playlists.size())
 			{
-				GetPlaylistTracks(_playlists[cellIndex - 4].uri, _playlists[cellIndex - 4].id);
-			}
-			else
-			{
-				GetRecentTracks();
+				GetPlaylistTracks(_playlists[cellIndex].uri, _playlists[cellIndex].id);
 			}
 			break;
 		}
 
-		case 2:
+		case kPlayerTrackList:
 		{
 			// Track List
 			GetMouse(&pt);
@@ -300,29 +293,27 @@ void HandlePlayerContent(short item)
 			break;
 		}
 			
-		case 3:
+		case kPlayerPlayButton:
 		{
 			if (_playerState.isPlaying)
 			{
 				_spotifyClient.Pause(
 					[=](JsonValue& root)
-					{
-						
-					});
+					{ });
 			}
 			else
 			{
 				_spotifyClient.Play(
 					[=](JsonValue& root)
-					{
-
-					});
+					{ });
 			}
 
+			_playerState.isPlaying = !_playerState.isPlaying;
+			TogglePlayButtonIcon();
 			break;
 		}
 
-		case 4:
+		case kPlayerPrevTrack:
 		{
 			_spotifyClient.PreviousTrack(
 				[=](JsonValue& root)
@@ -332,7 +323,7 @@ void HandlePlayerContent(short item)
 			break;
 		}
 
-		case 5:
+		case kPlayerNextTrack:
 		{
 			_spotifyClient.NextTrack(
 				[=](JsonValue& root)
@@ -347,6 +338,9 @@ void HandlePlayerContent(short item)
 
 void PlayTrack()
 {
+	_playerState.isPlaying = true;
+	TogglePlayButtonIcon();
+
 	_spotifyClient.PlayTrack(
 		_currentContext,
 		_currentTrack.uri, 
@@ -379,7 +373,9 @@ void UpdateCurrentTrack()
 void ViewNowPlaying()
 {
 	_viewNowPlaying = true;
-	HideDialogItem(_dialog, 2);
+	HideDialogItem(_dialog, kPlayerTrackLabel);
+	HideDialogItem(_dialog, kPlayerArtistLabel);
+	HideDialogItem(_dialog, kPlayerTrackList);
 	HideControl((**_trackList).vScroll);
 
 	string image = _currentTrack.image;
@@ -443,7 +439,10 @@ void PopulateTrackList(JsonValue& root)
 	int rowNum = (**_trackList).dataBounds.bottom;
 
 	_viewNowPlaying = false;
-	ShowDialogItem(_dialog, 2);
+
+	ShowDialogItem(_dialog, kPlayerTrackLabel);
+	ShowDialogItem(_dialog, kPlayerArtistLabel);
+	ShowDialogItem(_dialog, kPlayerTrackList);
 	ShowControl((**_trackList).vScroll);
 
 	LSetDrawingMode(false, _trackList);
@@ -536,7 +535,7 @@ void ModeInit(DialogPtr dialog)
 	ForeColor(whiteColor);
 
 	ShortenDITL(dialog, CountDITL(dialog));
-	Handle ditl = GetResource('DITL', 130);
+	Handle ditl = GetResource('DITL', kPlayerStartupDITL);
 	AppendDITL(dialog, ditl, overlayDITL);
 	ReleaseResource(ditl);
 
@@ -550,7 +549,7 @@ void ModeLogin(DialogPtr dialog)
 	MacSetPort(dialog);
 
 	ShortenDITL(dialog, CountDITL(dialog));
-	Handle ditl = GetResource('DITL', 128);
+	Handle ditl = GetResource('DITL', kPlayerLoginDITL);
 	AppendDITL(dialog, ditl, overlayDITL);
 	ReleaseResource(ditl);
 
@@ -568,17 +567,20 @@ void ModePlayer(DialogPtr dialog)
 	MacSetPort(dialog);
 
 	ShortenDITL(dialog, CountDITL(dialog));
-	Handle ditl = GetResource('DITL', 129);
+	Handle ditl = GetResource('DITL', kPlayerMainDITL);
 	AppendDITL(dialog, ditl, overlayDITL);
 	ReleaseResource(ditl);
 
+	HideDialogItem(dialog, kPlayerTrackLabel);
+	HideDialogItem(dialog, kPlayerArtistLabel);
+
 	// Init nav list
-	GetDialogItem(dialog, 1, &type, &itemH, &box);
+	GetDialogItem(dialog, kPlayerNavList, &type, &itemH, &box);
 	_navList = CreateList(dialog, box, 1, 128, 0, 0);
 	PopulateNavList(_navList);
 
 	// Init track list
-	GetDialogItem(dialog, 2, &type, &itemH, &box);
+	GetDialogItem(dialog, kPlayerTrackList, &type, &itemH, &box);
 	_trackList = CreateList(dialog, box, 1, 128, 0, 0);
 
 	UpdateDialog(dialog, dialog->visRgn);
@@ -611,34 +613,11 @@ ListHandle CreateList(
 
 void PopulateNavList(ListHandle list)
 {
-	array<string, 4> items = 
-	{ 
-		"Recently Played", 
-		"Songs", 
-		"Albums",
-		"Artists"
-	};
-
 	LSetDrawingMode(false, list);
 
 	int rowNum = (**list).dataBounds.bottom;
 	Cell cell;
 	ListRow row;
-
-	for (const auto& item : items) 
-	{
-		row.CellCount = 1;
-
-		rowNum = LAddRow(1, rowNum, list);
-		SetPt(&cell, 0, rowNum);
-
-		char* pLabel = (char*)Util::StrToPStr(item);
-		strncpy((char*)row.Cells[0].Content, pLabel, 256);
-		row.Cells[0].WidthPercent = 1;
-
-		LSetCell(&row, sizeof(ListRow), cell, list);
-		rowNum = rowNum + 1;
-	}
 
 	for (const auto& playlist : _playlists)
 	{
@@ -721,7 +700,6 @@ void GetPlaylists(DialogPtr dialog)
 				playlist.uri = playlistNode("uri").toString();
 
 				_playlists.push_back(playlist);
-
 				it++;
 			}
 
@@ -748,19 +726,7 @@ void PollPlayerState()
 				if (isPlaying != _playerState.isPlaying)
 				{
 					_playerState.isPlaying = isPlaying;
-
-					int iconId = isPlaying ? 136 : 128;
-
-					DialogItemType itemType;
-					Handle tempHandle;
-					Rect itemRect;
-					Handle iconHandle = (Handle)GetCIcon(iconId);
-					GetDialogItem(_dialog, 3, &itemType, &tempHandle, &itemRect);
-
-					SetDialogItem(_dialog, 3, itemType, iconHandle, &itemRect);
-
-					InvalRect(&itemRect);
-					UpdateDialog(_dialog, _dialog->visRgn);
+					TogglePlayButtonIcon();
 				}
 
 				if (_viewNowPlaying)
@@ -783,6 +749,22 @@ void PollPlayerState()
 				}
 			});
 	}	
+}
+
+void TogglePlayButtonIcon()
+{
+	DialogItemType itemType;
+	Handle tempHandle;
+	Rect itemRect;
+
+	int iconId = _playerState.isPlaying ? kPlayerPauseIcon : kPlayerPlayIcon;
+	Handle iconHandle = (Handle)GetCIcon(iconId);
+
+	GetDialogItem(_dialog, kPlayerPlayButton, &itemType, &tempHandle, &itemRect);
+	SetDialogItem(_dialog, kPlayerPlayButton, itemType, iconHandle, &itemRect);
+
+	InvalRect(&itemRect);
+	UpdateDialog(_dialog, _dialog->visRgn);
 }
 
 void HandleUpdate(EventRecord *eventPtr)
@@ -815,28 +797,6 @@ void HandleUpdate(EventRecord *eventPtr)
 	}
 }
 
-void HandleActivate(EventRecord *eventPtr)
-{
-	WindowPtr windowPtr = (WindowPtr)eventPtr->message;
-
-	/*if (windowPtr == _prefs.GetWindow())
-	{
-		bool becomingActive = (eventPtr->modifiers & activeFlag) == activeFlag;
-		_prefs.Activate(becomingActive);
-	}*/
-}
-
-void HandleOSEvt(EventRecord *eventPtr)
-{
-	switch ((eventPtr->message >> 24) & 0x000000FF)
-	{
-		case suspendResumeMessage:
-			bool becomingActive = (eventPtr->message & resumeFlag) == 1;
-			//_prefs.Activate(becomingActive);
-			break;
-	}
-}
-
 pascal OSErr Quit(AppleEvent* appleEvent, AppleEvent* reply, long refCon)
 {
 	_run = false;
@@ -850,7 +810,6 @@ pascal OSErr ProcessResponseEvent(AppleEvent* appleEvent, AppleEvent* reply, lon
 void InitCustomLDEF()
 {
 	// 10-byte code resource stub trick
-
 	Handle h = GetResource('LDEF', 128);
 	HLock(h);
 	*(ListDefProcPtr*)(*h + 6) = &DarkListDef;

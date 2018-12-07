@@ -17,6 +17,26 @@ enum UIState
 	Player
 };
 
+enum UIElements
+{
+	kPlayerDialog = 128,
+	kPlayerMenubar = 128,
+	kPlayerLoginButton = 2,
+	kPlayerPlaylistsLabel = 1,
+	kPlayerNavList = 2,
+	kPlayerTrackLabel = 3,
+	kPlayerArtistLabel = 4,
+	kPlayerTrackList = 5,
+	kPlayerPlayButton = 6,
+	kPlayerPrevTrack = 7,
+	kPlayerNextTrack = 8,
+	kPlayerStartupDITL = 130,
+	kPlayerLoginDITL = 128,
+	kPlayerMainDITL = 129,
+	kPlayerPlayIcon = 128,
+	kPlayerPauseIcon = 136
+};
+
 struct Playlist
 {
 	string name;
@@ -80,8 +100,9 @@ void UpdateCurrentTrack();
 void PopulateTrackList(JsonValue& root);
 Track GetTrackObject(JsonValue& track);
 void SetTrackImage(JsonValue& track, Track& trackObj);
-void PollPlayerState();
+void PollPlayerState(); 
 void DrawTrackImage();
+void TogglePlayButtonIcon();
 
 vector<Track> _tracks;
 vector<Playlist> _playlists;

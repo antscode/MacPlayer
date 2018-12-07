@@ -143,11 +143,28 @@ extern "C"
 						DSInitControl(dPtr, cPtr);/* Re-init it        */
 						//DSFrameBody((long)&cPtr->contrlRect);/* Init scroll */
 						//DSFrameButtons(dPtr);/* Frame the buttons     */
-						DSFrameHUpBtn();
-						DSFrameLDownBtn();
+
+
+						if (cPtr->contrlHilite != 255 &&
+							cPtr->contrlMax != cPtr->contrlMin)
+						{
+							DSFrameHUpBtn();
+							DSFrameLDownBtn();
+						}
+
 						DSDrawThumb(dPtr, theControl); break;
 					case 129:             /* Value/Min/Max changed */
-						DSDrawThumb(dPtr, theControl); break;
+						DSDrawThumb(dPtr, theControl); 
+
+						if (cPtr->contrlHilite != 255 &&
+							cPtr->contrlMax != cPtr->contrlMin)
+						{
+							DSFrameHUpBtn();
+							DSFrameLDownBtn();
+						}
+						
+						
+						break;
 					case 0xff:            /* Control to be inactive*/
 						DSSetScrollRgn(dPtr, &wRect);
 						DSClearBody((long)&wRect); break;
@@ -155,36 +172,19 @@ extern "C"
 					case kControlPageDownPart:
 						DSDrawThumb(dPtr, theControl); break;
 					case kControlUpButtonPart:      /* Hilite high up button */
-						//if (dPtr->altButton) {/* Check if alt button  */
-						//	if (cPtr->contrlHilite == 0 ||
-						//		cPtr->contrlMin == cPtr->contrlMax)
-						//		DSFrameLUpBtn();
-						//	else
-						//		DSFillLUpBtn();
-						//}
-						//else {
-							if (cPtr->contrlHilite == 0 ||
-								cPtr->contrlMin == cPtr->contrlMax)
-								DSFrameHUpBtn();
-							else
-								DSFillHUpBtn();
-						//}
+						if (cPtr->contrlHilite != 0 &&
+							cPtr->contrlMin != cPtr->contrlMax)
+						//	DSFrameHUpBtn();
+						//else
+							DSFillHUpBtn();
+
 						break;
 					case kControlDownButtonPart:    /* Hilite high down buttn*/
-						//if (dPtr->altButton) {/* Check if alt button  */
-							if (cPtr->contrlHilite == 0 ||
-								cPtr->contrlMin == cPtr->contrlMax)
-								DSFrameLDownBtn();
-							else
-								DSFillLDownBtn();
-						/*}
-						else {
-							if (cPtr->contrlHilite == 0 ||
-								cPtr->contrlMin == cPtr->contrlMax)
-								DSFrameHDownBtn();
-							else
-								DSFillHDownBtn();
-						}*/
+						if (cPtr->contrlHilite != 0 &&
+							cPtr->contrlMin != cPtr->contrlMax)
+						//	DSFrameLDownBtn();
+						//else
+							DSFillLDownBtn();
 					}
 				}
 			}
@@ -549,28 +549,8 @@ extern "C"
 		MacOffsetRect(&tRect, cRect.left, cRect.top);
 		if (MacPtInRect(pt, &tRect)) { /* Check if high up buttn*/
 			status = kControlUpButtonPart;      /* Set high up button    */
-			//dPtr->altButton = FALSE;  /* Not using alt button  */
 		}
-		//if (!status) {             /* Check if prev part    */
-		//						   /* Adjust for down button*/
-		//	MacOffsetRect(&tRect, dPtr->hFactor * dPtr->hBLen,
-		//		dPtr->vFactor * dPtr->hBLen);
-		//	if (MacPtInRect(pt, &tRect)) {/* Check if high down    */
-		//		status = kControlDownButtonPart;   /* Set high down button  */
-		//		dPtr->altButton = FALSE;  /* Not using alt button  */
-		//	}
-		//}
-		//if (!status) {             /* Check if prev part    */
-		//	tRect = bRect;            /* Set the temp rect area*/
-		//	offset = dPtr->sLen - dPtr->bLen;
-		//	/* Offset where low up   */
-		//	MacOffsetRect(&tRect, cRect.left + dPtr->hFactor*offset,
-		//		cRect.top + dPtr->vFactor*offset);
-		//	if (MacPtInRect(pt, &tRect)) {/* Check if low up button*/
-		//		status = kControlUpButtonPart;     /* Set low up button     */
-		//		dPtr->altButton = TRUE; /* Using alt button       */
-		//	}
-		//}
+
 		if (!status) {             /* Check if prev part    */
 								   /* Offset where low down */
 			tRect = bRect;
@@ -581,7 +561,6 @@ extern "C"
 				dPtr->vFactor * dPtr->hBLen);
 			if (MacPtInRect(pt, &tRect)) {/* Check if the low down */
 				status = kControlDownButtonPart;  /* Set low down button    */
-				//dPtr->altButton = TRUE; /* Using alt button       */
 			}
 
 		}

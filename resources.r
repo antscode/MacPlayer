@@ -143,12 +143,24 @@ resource 'DITL' (128, purgeable) {
 
 resource 'DITL' (129, purgeable) {
 	{ 
+		/* Playlists Label */
+		{1, 4, 15, 100},
+		StaticText { disabled, "PLAYLISTS" };
+
 		/* Nav List */
-		{ 0, 5, 250, 100+10 },
+		{ 17, 5, 250, 113 },
 		UserItem { enabled };
 
+		/* Track Label */
+		{1, 119, 15, 300},
+		StaticText { disabled, "TITLE" };
+
+		/* Artist Label */
+		{1, 302, 15, 505},
+		StaticText { disabled, "ARTIST" };
+
 		/* Track List */
-		{ 0, 120, 250, 505 },
+		{ 17, 120, 250, 505 },
 		UserItem { enabled };
 
 		/* Play */

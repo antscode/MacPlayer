@@ -71,14 +71,10 @@ extern "C"
 		}
 
 		// Restore graphics environment
-		ForeColor(blackColor);
 		MacSetPort(savedPort);
 		SetClip(savedClip);
 		DisposeRgn(savedClip);
 		SetPenState(&savedPenState);
-		TextFont(0);
-		TextSize(0);
-		TextFace(normal);
 	}
 
 	pascal void Dispose(ListHandle list)
