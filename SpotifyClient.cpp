@@ -78,6 +78,15 @@ void SpotifyClient::GetPlaylistTracks(const string& playlistId, function<void(Js
 		onComplete);
 }
 
+void SpotifyClient::ActivateDevice(const string& deviceId, function<void(JsonValue&)> onComplete)
+{
+	Put(
+		"https://api.spotify.com/v1/me/player",
+		false,
+		"{ \"device_ids\": [\"" + deviceId + "\"], \"play\": true }",
+		onComplete);
+}
+
 void SpotifyClient::GetImage(const string& image, const string& albumId, function<void(PicHandle)> onComplete)
 {
 	FSSpec imageSpec;

@@ -73,16 +73,14 @@ resource 'MBAR' (128, preload) {
 	{ 128, 129, 130 };
 };
 
-resource 'MENU' (128, preload) {
-	128, textMenuProc,
-	0b1111111111111111111111111111101,
-	enabled, apple,
-	{
-		"About MacPlayer\311",
-			noicon, nokey, nomark, plain;
-		"-",
-			noicon, nokey, nomark, plain
-	}
+resource 'MENU' (128) {
+    128, textMenuProc;
+    allEnabled, enabled;
+    apple;
+    {
+        "About MacPlayer...", noIcon, noKey, noMark, plain;
+        "-", noIcon, noKey, noMark, plain;
+    }
 };
 
 resource 'MENU' (129) {
@@ -216,6 +214,19 @@ resource 'DITL' (131, purgeable) {
 		{8, 72, 70, 380},
 		StaticText { disabled, "^0" };
 	}
+};
+
+data 'TEXT' (133) {
+    "MacPlayer\r\r"
+    "2018, Anthony Super."
+};
+
+resource 'WIND' (133) {
+    {0, 0, 220, 320}, altDBoxProc;
+    invisible;
+    noGoAway;
+    0, "";
+    noAutoCenter;
 };
 
 

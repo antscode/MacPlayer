@@ -31,10 +31,12 @@ class SpotifyClient
 		void GetDevices(function<void(JsonValue&)> onComplete);
 		void GetPlaylists(function<void(JsonValue&)> onComplete);
 		void GetPlaylistTracks(const string& playlistId, function<void(JsonValue&)> onComplete);
+		void ActivateDevice(const string& deviceId, function<void(JsonValue&)> onComplete);
 		void GetImage(const string& image, const string& albumId, function<void(PicHandle)> onComplete);
 		void GetPlayerState(function<void(JsonValue&)> onComplete);
 		void Play(function<void(JsonValue&)> onComplete);
 		void Pause(function<void(JsonValue&)> onComplete);
+		void HandleError(const string& errorMsg);
 
 	private:
 		class SpotifyRequest
@@ -81,7 +83,6 @@ class SpotifyClient
 		void DoPut(int requestId);
 		void HandleResponse(MacWifiResponse& response);
 		void RefreshAccessToken(int requestId);
-		void HandleError(const string& errorMsg);
 		void InitCache();
 		bool SaveImage(const FSSpec* imageSpec, long size);
 };

@@ -4,6 +4,7 @@
 #include <Quickdraw.h>
 #include <Menus.h>
 #include <ToolUtils.h>
+#include <Devices.h>
 #include <Timer.h>
 #include <string.h>
 #include <gason/gason.hpp>
@@ -157,20 +158,7 @@ void HandleMouseDown(EventRecord *eventPtr)
 		case inGoAway:
 			if (TrackGoAway(window, eventPtr->where))
 			{
-				CloseDialog(_dialog);
-
-				if (_playerState.isPlaying)
-				{
-					_spotifyClient.Pause(
-						[](JsonValue& root)
-						{
-							_run = false;
-						});
-				}
-				else
-				{
-					_run = false;
-				}
+				ExitApp();
 			}
 			break;
 	}
@@ -178,36 +166,96 @@ void HandleMouseDown(EventRecord *eventPtr)
 
 void HandleMenuChoice(long menuChoice)
 {
-	short menu;
-	short item;
-
-	if (menuChoice != 0)
+	Str255 str;
+	WindowRef w;
+	short menuID = menuChoice >> 16;
+	short menuItem = menuChoice & 0xFFFF;
+	if (menuID == kMenuApple)
 	{
-		menu = HiWord(menuChoice);
-		item = LoWord(menuChoice);
-
-		switch (menu)
+		if (menuItem == kItemAbout)
+			ShowAboutBox();
+		else
 		{
-			case mAppleMenu:
-				HandleAppleChoice(item);
+			GetMenuItemText(MacGetMenu(128), menuItem, str);
+			OpenDeskAcc(str);
+		}
+	}
+	else if (menuID == kMenuFile)
+	{
+		switch (menuItem)
+		{
+			case kItemQuit:
+				ExitApp();
 				break;
 		}
-
-		HiliteMenu(0);
 	}
+	else if (menuID == kMenuDevices)
+	{
+		if (menuItem < _devices.size())
+		{
+			ActivateDevice(menuItem);
+		}
+		else
+		{
+			// Refresh menu item
+			GetDevices();
+		}
+	}
+
+	HiliteMenu(0);
 }
 
-void HandleAppleChoice(short item)
+void ActivateDevice(int index)
 {
-	MenuHandle appleMenu;
-	Str255 accName;
-	short accNumber;
+	_spotifyClient.ActivateDevice(
+		_devices[index].id,
+		[=](JsonValue& root)
+		{
+			MenuHandle deviceMenu = GetMenuHandle(130);
+			SetItemMark(deviceMenu, index, checkMark);
+		});
+}
 
-	switch (item)
+void ShowAboutBox()
+{
+	WindowRef w = GetNewWindow(133, NULL, (WindowPtr)-1);
+	MacMoveWindow(w,
+		qd.screenBits.bounds.right / 2 - w->portRect.right / 2,
+		qd.screenBits.bounds.bottom / 2 - w->portRect.bottom / 2,
+		false);
+	MacShowWindow(w);
+	MacSetPort(w);
+
+	Handle h = GetResource('TEXT', 133);
+	HLock(h);
+	Rect r = w->portRect;
+	MacInsetRect(&r, 10, 10);
+	TETextBox(*h, GetHandleSize(h), &r, teJustLeft);
+
+	ReleaseResource(h);
+	while (!Button())
+		;
+	while (Button())
+		;
+	FlushEvents(everyEvent, 0);
+	DisposeWindow(w);
+}
+
+void ExitApp()
+{
+	CloseDialog(_dialog);
+
+	if (_playerState.isPlaying)
 	{
-		default:
-			appleMenu = GetMenuHandle(mAppleMenu);
-			break;
+		_spotifyClient.Pause(
+			[](JsonValue& root)
+			{
+				_run = false;
+			});
+	}
+	else
+	{
+		_run = false;
 	}
 }
 
@@ -646,15 +694,26 @@ void InitPlayer(DialogPtr dialog)
 	_currentTrack.uri = "";
 	_playerState.isPlaying = false;
 
-	// Get available devices
+	GetDevices();
+	GetPlaylists(dialog);
+}
+
+void GetDevices()
+{
 	_spotifyClient.GetDevices(
 		[=](JsonValue& root)
-		{	
+		{
 			string deviceId, deviceName;
 			bool active;
 
 			MenuHandle deviceMenu = GetMenuHandle(130);
 			int itemCount = CountMItems(deviceMenu);
+
+			// Clear existing menu items
+			while (itemCount > 0) {
+				DeleteMenuItem(deviceMenu, 1);
+				itemCount--;
+			}
 
 			JsonValue devices = root("devices");
 
@@ -663,22 +722,34 @@ void InitPlayer(DialogPtr dialog)
 			{
 				JsonValue device = it->value;
 
-				deviceId = device("id").toString();
-				deviceName = device("name").toString();
-				active = device("is_active").toBool();
+				Device deviceObj;
+				deviceObj.name = device("name").toString();
+				deviceObj.id = device("id").toString();
+				deviceObj.active = device("is_active").toBool();
+
+				_devices.push_back(deviceObj);
 
 				AppendMenu(deviceMenu, "\p ");
 				itemCount++;
-				SetMenuItemText(deviceMenu, itemCount, Util::StrToPStr(deviceName));
+				SetMenuItemText(deviceMenu, itemCount, Util::StrToPStr(deviceObj.name));
 
-				if (active)
+				if (deviceObj.active)
 					SetItemMark(deviceMenu, itemCount, checkMark);
 
 				it++;
 			}
 
+			AppendMenu(deviceMenu, "\p ");
+			itemCount++;
+			SetMenuItemText(deviceMenu, itemCount, "\pRefresh...");
+
 			MacDrawMenuBar();
-			GetPlaylists(dialog);
+
+			if (itemCount == 0)
+			{
+				// No available devices
+				_spotifyClient.HandleError("No Spotify Connect devices found.\rPlease enable a device then refresh via the Devices menu.");
+			}
 		});
 }
 

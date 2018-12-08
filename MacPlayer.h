@@ -7,7 +7,6 @@
 #include "DarkScrollbarDef.h"
 #include "SpotifyClient.h"
 
-const short mAppleMenu = 128;
 const double mPollFrequencyMs = 5000;
 
 enum UIState
@@ -15,6 +14,19 @@ enum UIState
 	Init,
 	Login,
 	Player
+};
+
+enum
+{
+	kMenuApple = 128,
+	kMenuFile,
+	kMenuDevices
+};
+
+enum
+{
+	kItemAbout = 1,
+	kItemQuit = 1
 };
 
 enum UIElements
@@ -35,6 +47,13 @@ enum UIElements
 	kPlayerMainDITL = 129,
 	kPlayerPlayIcon = 128,
 	kPlayerPauseIcon = 136
+};
+
+struct Device
+{
+	string name;
+	string id;
+	bool active;
 };
 
 struct Playlist
@@ -87,7 +106,7 @@ void ModeInit(DialogPtr dialog);
 void ModeLogin(DialogPtr dialog);
 void ModePlayer(DialogPtr dialog);
 void HandleMenuChoice(long menuChoice);
-void HandleAppleChoice(short item);
+void ShowAboutBox();
 void WaitCursor();
 void HandlePlayerContent(short item);
 void GetRecentTracks();
@@ -103,7 +122,11 @@ void SetTrackImage(JsonValue& track, Track& trackObj);
 void PollPlayerState(); 
 void DrawTrackImage();
 void TogglePlayButtonIcon();
+void ExitApp();
+void ActivateDevice(int index);
+void GetDevices();
 
+vector<Device> _devices;
 vector<Track> _tracks;
 vector<Playlist> _playlists;
 Track _currentTrack;
