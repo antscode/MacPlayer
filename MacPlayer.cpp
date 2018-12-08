@@ -218,27 +218,19 @@ void ActivateDevice(int index)
 
 void ShowAboutBox()
 {
-	WindowRef w = GetNewWindow(133, NULL, (WindowPtr)-1);
-	MacMoveWindow(w,
-		qd.screenBits.bounds.right / 2 - w->portRect.right / 2,
-		qd.screenBits.bounds.bottom / 2 - w->portRect.bottom / 2,
-		false);
-	MacShowWindow(w);
-	MacSetPort(w);
+	DialogRef aboutDialog = GetNewDialog(kAboutDialog, 0, (WindowPtr)-1);
 
-	Handle h = GetResource('TEXT', 133);
-	HLock(h);
-	Rect r = w->portRect;
-	MacInsetRect(&r, 10, 10);
-	TETextBox(*h, GetHandleSize(h), &r, teJustLeft);
+	MacSetPort(aboutDialog);
+	UpdateDialog(aboutDialog, aboutDialog->visRgn);
 
-	ReleaseResource(h);
 	while (!Button())
 		;
 	while (Button())
 		;
+
 	FlushEvents(everyEvent, 0);
-	DisposeWindow(w);
+	DisposeWindow(aboutDialog);
+	MacSetPort(_dialog);
 }
 
 void ExitApp()

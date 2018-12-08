@@ -46,7 +46,8 @@ enum UIElements
 	kPlayerLoginDITL = 128,
 	kPlayerMainDITL = 129,
 	kPlayerPlayIcon = 128,
-	kPlayerPauseIcon = 136
+	kPlayerPauseIcon = 136,
+	kAboutDialog = 133
 };
 
 struct Device
