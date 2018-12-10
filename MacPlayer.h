@@ -126,12 +126,14 @@ void TogglePlayButtonIcon();
 void ExitApp();
 void ActivateDevice(int index);
 void GetDevices();
+void NoDevicesError();
 
 vector<Device> _devices;
 vector<Track> _tracks;
 vector<Playlist> _playlists;
 Track _currentTrack;
 string _currentContext;
+bool _activeDevice;
 
 ListHandle _navList = 0, _trackList = 0;
 ListHandle CreateList(

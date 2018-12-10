@@ -191,7 +191,7 @@ void HandleMenuChoice(long menuChoice)
 	}
 	else if (menuID == kMenuDevices)
 	{
-		if (menuItem < _devices.size())
+		if (menuItem <= _devices.size())
 		{
 			ActivateDevice(menuItem);
 		}
@@ -208,11 +208,13 @@ void HandleMenuChoice(long menuChoice)
 void ActivateDevice(int index)
 {
 	_spotifyClient.ActivateDevice(
-		_devices[index].id,
+		_devices[index - 1].id,
 		[=](JsonValue& root)
 		{
 			MenuHandle deviceMenu = GetMenuHandle(130);
 			SetItemMark(deviceMenu, index, checkMark);
+			//MacDrawMenuBar();
+			_activeDevice = true;
 		});
 }
 
@@ -326,8 +328,15 @@ void HandlePlayerContent(short item)
 
 			if (dblClick)
 			{
-				_currentTrack = _tracks[cellIndex];
-				PlayTrack();
+				if (_activeDevice)
+				{
+					_currentTrack = _tracks[cellIndex];
+					PlayTrack();
+				}
+				else
+				{
+					NoDevicesError();
+				}
 			}
 
 			break;
@@ -335,41 +344,62 @@ void HandlePlayerContent(short item)
 			
 		case kPlayerPlayButton:
 		{
-			if (_playerState.isPlaying)
+			if (_activeDevice)
 			{
-				_spotifyClient.Pause(
-					[=](JsonValue& root)
-					{ });
+				if (_playerState.isPlaying)
+				{
+					_spotifyClient.Pause(
+						[=](JsonValue& root)
+						{ });
+				}
+				else
+				{
+					_spotifyClient.Play(
+						[=](JsonValue& root)
+						{ });
+				}
+
+				_playerState.isPlaying = !_playerState.isPlaying;
+				TogglePlayButtonIcon();
 			}
 			else
 			{
-				_spotifyClient.Play(
-					[=](JsonValue& root)
-					{ });
+				NoDevicesError();
 			}
-
-			_playerState.isPlaying = !_playerState.isPlaying;
-			TogglePlayButtonIcon();
 			break;
 		}
 
 		case kPlayerPrevTrack:
 		{
-			_spotifyClient.PreviousTrack(
-				[=](JsonValue& root)
-				{
-					UpdateCurrentTrack();
-				});
+			if (_activeDevice)
+			{
+				_spotifyClient.PreviousTrack(
+					[=](JsonValue& root)
+					{
+						UpdateCurrentTrack();
+					});
+			}
+			else
+			{
+				NoDevicesError();
+			}
 			break;
 		}
 
 		case kPlayerNextTrack:
 		{
-			_spotifyClient.NextTrack(
-				[=](JsonValue& root)
-				{
-					UpdateCurrentTrack();
-				});
+			if (_activeDevice)
+			{
+				_spotifyClient.NextTrack(
+					[=](JsonValue& root)
+					{
+						UpdateCurrentTrack();
+					});
+			}
+			else
+			{
+				NoDevicesError();
+			}
 			break;
 		}
 		break;
@@ -717,7 +747,7 @@ void GetDevices()
 				Device deviceObj;
 				deviceObj.name = device("name").toString();
 				deviceObj.id = device("id").toString();
-				deviceObj.active = device("is_active").toBool();
+				deviceObj.active = device("is_active").getTag() == JSON_TRUE;
 
 				_devices.push_back(deviceObj);
 
@@ -726,7 +756,10 @@ void GetDevices()
 				SetMenuItemText(deviceMenu, itemCount, Util::StrToPStr(deviceObj.name));
 
 				if (deviceObj.active)
+				{
 					SetItemMark(deviceMenu, itemCount, checkMark);
+					_activeDevice = true;
+				}
 
 				it++;
 			}
@@ -737,12 +770,16 @@ void GetDevices()
 
 			MacDrawMenuBar();
 
-			if (itemCount == 0)
+			if (itemCount == 1)
 			{
-				// No available devices
-				_spotifyClient.HandleError("No Spotify Connect devices found.\rPlease enable a device then refresh via the Devices menu.");
+				NoDevicesError();
 			}
 		});
+}
+
+void NoDevicesError()
+{
+	_spotifyClient.HandleError("No Spotify Connect devices found.\rPlease enable a device then refresh via the Devices menu.");
 }
 
 void GetPlaylists(DialogPtr dialog)
