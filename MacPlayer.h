@@ -127,6 +127,7 @@ void ExitApp();
 void ActivateDevice(int index);
 void GetDevices();
 void NoDevicesError();
+void DrawTrackName();
 
 vector<Device> _devices;
 vector<Track> _tracks;

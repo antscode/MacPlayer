@@ -42,9 +42,11 @@ unsigned char* Util::CtoPStr(char *s)
 	return (unsigned char *)s;
 }
 
-unsigned char* Util::StrToPStr(std::string str)
+unsigned char* Util::StrToPStr(const string& str)
 {
-	char* s = (char*)str.c_str();
+	// Work off a copy
+	string text = str.c_str();
+	char* s = (char*)text.c_str();
 
 	int theLen;
 	int t;

@@ -12,7 +12,7 @@ class Util
 		static char* PtoCStr(unsigned char *s);
 		static std::string PtoStr(unsigned char *s);
 		static unsigned char* CtoPStr(char *s);
-		static unsigned char* StrToPStr(string str);
+		static unsigned char* StrToPStr(const string& str);
 		static void Debug(string msg);
 		static void FrameDefaultButton(DialogPtr dialog, short itemNo, bool active);
 		static bool IsControlHilited(DialogPtr dialog, short itemNo);

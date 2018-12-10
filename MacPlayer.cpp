@@ -213,7 +213,6 @@ void ActivateDevice(int index)
 		{
 			MenuHandle deviceMenu = GetMenuHandle(130);
 			SetItemMark(deviceMenu, index, checkMark);
-			//MacDrawMenuBar();
 			_activeDevice = true;
 		});
 }
@@ -410,6 +409,7 @@ void PlayTrack()
 {
 	_playerState.isPlaying = true;
 	TogglePlayButtonIcon();
+	DrawTrackName();
 
 	_spotifyClient.PlayTrack(
 		_currentContext,
@@ -430,7 +430,8 @@ void UpdateCurrentTrack()
 			if (track.getTag() == JSON_OBJECT)
 			{
 				_currentTrack = GetTrackObject(track);
-
+				
+				DrawTrackName();
 				ViewNowPlaying();
 			}
 			else
@@ -477,6 +478,37 @@ void DrawTrackImage()
 		ForeColor(blackColor);
 		PaintRect(&pictRect);
 	}
+}
+
+void DrawTrackName()
+{
+	Rect trackRect;
+	MacSetRect(&trackRect, 10, 264, 130, 290);
+	EraseRect(&trackRect);
+
+	short length;
+
+	string name = _currentTrack.name.c_str();
+	const char* cName = name.c_str();
+	length = strlen(cName);
+	TruncText(120, (Ptr)cName, &length, truncEnd);
+
+	unsigned char* pName = Util::CtoPStr((char*)cName);
+	pName[0] = length;
+
+	MoveTo(10, 271);
+	DrawString(pName);
+
+	string artist = _currentTrack.artist.c_str();
+	const char* cArtist = artist.c_str();
+	length = strlen(cArtist);
+	TruncText(120, (Ptr)cArtist, &length, truncEnd);
+
+	unsigned char* pArtist = Util::CtoPStr((char*)cArtist);
+	pArtist[0] = length;
+
+	MoveTo(10, 283);
+	DrawString(pArtist);
 }
 
 void GetRecentTracks()
@@ -526,26 +558,28 @@ void PopulateTrackList(JsonValue& root)
 	{
 		JsonValue father = it->value;
 		ListRow row;
+		Track trackObj;
 		
 		track = father("track");
 		artists = track("artists");
 
+		trackObj = GetTrackObject(track);
+		_tracks.push_back(trackObj);
+
 		row.CellCount = 2;
 
-		char* pTrackName = (char*)Util::CtoPStr(track("name").toString());
+		char* pTrackName = (char*)Util::StrToPStr(trackObj.name);
 		strncpy((char*)row.Cells[0].Content, pTrackName, 256);
 
 		row.Cells[0].WidthPercent = 0.5;
 
-		char* pArtist = (char*)Util::CtoPStr(artists[0]("name").toString());
+		char* pArtist = (char*)Util::StrToPStr(trackObj.artist);
 		strncpy((char*)row.Cells[1].Content, pArtist, 256);
 		row.Cells[1].WidthPercent = 0.5;
 
 		rowNum = LAddRow(1, rowNum, _trackList);
 		SetPt(&cell, 0, rowNum);
 		LSetCell(&row, sizeof(ListRow), cell, _trackList);
-
-		_tracks.push_back(GetTrackObject(track));
 
 		rowNum = rowNum + 1;
 		it++;
@@ -565,6 +599,10 @@ Track GetTrackObject(JsonValue& track)
 	Track trackObj;
 	trackObj.name = track("name").toString();
 	trackObj.uri = track("uri").toString();
+
+	JsonValue artists = track("artists");
+	trackObj.artist = artists[0]("name").toString();
+
 	SetTrackImage(track, trackObj);
 
 	return trackObj;
@@ -842,6 +880,7 @@ void PollPlayerState()
 							if (trackUri != _currentTrack.uri)
 							{
 								_currentTrack = GetTrackObject(track);
+								DrawTrackName();
 								ViewNowPlaying();
 							}
 						}
@@ -892,6 +931,7 @@ void HandleUpdate(EventRecord *eventPtr)
 			}
 		}
 
+		DrawTrackName();
 		UpdateDialog(windowPtr, windowPtr->visRgn);
 		EndUpdate(windowPtr);
 	}
