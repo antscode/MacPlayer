@@ -74,7 +74,8 @@ extern "C"
 		MacSetPort(savedPort);
 		SetClip(savedClip);
 		DisposeRgn(savedClip);
-		SetPenState(&savedPenState);
+		SetPenState(&savedPenState); 
+		TextMode(srcCopy);
 	}
 
 	pascal void Dispose(ListHandle list)

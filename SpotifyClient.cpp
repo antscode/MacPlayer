@@ -87,6 +87,24 @@ void SpotifyClient::ActivateDevice(const string& deviceId, function<void(JsonVal
 		onComplete);
 }
 
+bool SpotifyClient::ImageIsCached(const string& albumId)
+{
+	FSSpec imageSpec;
+	OSErr err;
+	short file;
+
+	unsigned char* filename = Util::StrToPStr(albumId);
+	FSMakeFSSpec(_cacheVRefNum, _cacheDirId, filename, &imageSpec);
+	err = FSpOpenDF(&imageSpec, fsRdPerm, &file);
+
+	if (err == noErr) {
+		FSClose(file);
+		return true;
+	}
+
+	return false;
+}
+
 void SpotifyClient::GetImage(const string& image, const string& albumId, function<void(PicHandle)> onComplete)
 {
 	FSSpec imageSpec;
@@ -156,7 +174,7 @@ void SpotifyClient::GetPlayerState(function<void(JsonValue&)> onComplete)
 {
 	Get(
 		"https://api.spotify.com/v1/me/player",
-		false,
+		true,
 		onComplete);
 }
 

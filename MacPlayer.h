@@ -47,7 +47,8 @@ enum UIElements
 	kPlayerMainDITL = 129,
 	kPlayerPlayIcon = 128,
 	kPlayerPauseIcon = 136,
-	kAboutDialog = 133
+	kAboutDialog = 133,
+	kPlaceholderImage = 134
 };
 
 struct Device
@@ -128,6 +129,8 @@ void ActivateDevice(int index);
 void GetDevices();
 void NoDevicesError();
 void DrawTrackName();
+void DrawPlaceholderImage();
+void TrackChanging();
 
 vector<Device> _devices;
 vector<Track> _tracks;
@@ -135,6 +138,8 @@ vector<Playlist> _playlists;
 Track _currentTrack;
 string _currentContext;
 bool _activeDevice;
+Rect _trackImageRect;
+bool _pausePoll;
 
 ListHandle _navList = 0, _trackList = 0;
 ListHandle CreateList(

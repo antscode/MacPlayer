@@ -32,6 +32,7 @@ class SpotifyClient
 		void GetPlaylists(function<void(JsonValue&)> onComplete);
 		void GetPlaylistTracks(const string& playlistId, function<void(JsonValue&)> onComplete);
 		void ActivateDevice(const string& deviceId, function<void(JsonValue&)> onComplete);
+		bool ImageIsCached(const string& albumId);
 		void GetImage(const string& image, const string& albumId, function<void(PicHandle)> onComplete);
 		void GetPlayerState(function<void(JsonValue&)> onComplete);
 		void Play(function<void(JsonValue&)> onComplete);

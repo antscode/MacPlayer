@@ -422,6 +422,9 @@ void PlayTrack()
 
 void UpdateCurrentTrack()
 {
+	// Pause polling to prevent conflicts
+	_pausePoll = true;
+
 	_spotifyClient.GetPlayerState(
 		[=](JsonValue& root)
 		{
@@ -433,6 +436,7 @@ void UpdateCurrentTrack()
 				
 				DrawTrackName();
 				ViewNowPlaying();
+				_pausePoll = false;
 			}
 			else
 			{
@@ -453,6 +457,11 @@ void ViewNowPlaying()
 
 	if (image != "")
 	{
+		if (!_spotifyClient.ImageIsCached(_currentTrack.albumId))
+		{
+			DrawPlaceholderImage();
+		}
+
 		_spotifyClient.GetImage(image, _currentTrack.albumId,
 			[=](PicHandle picHandle)
 			{
@@ -461,29 +470,48 @@ void ViewNowPlaying()
 	}
 }
 
-void DrawTrackImage()
+void DrawPlaceholderImage()
 {
 	Rect pictRect;
 	MacSetRect(&pictRect, 127, 0, 377, 250);
 
+	PicHandle pic = GetPicture(kPlaceholderImage);
+	DrawPicture(pic, &pictRect);
+}
+
+void TrackChanging()
+{
+	// Temporary state while we don't yet know the next track
+	_currentTrack.name = "";
+	_currentTrack.artist = "";
+	DrawTrackName();
+
+	if (_viewNowPlaying)
+	{
+		DrawPlaceholderImage();
+	}
+}
+
+void DrawTrackImage()
+{
 	if (_spotifyClient.ActiveTrackImage != nil)
 	{
 		ForeColor(whiteColor);
-		PaintRect(&pictRect);
-		DrawPicture(_spotifyClient.ActiveTrackImage, &pictRect);
+		PaintRect(&_trackImageRect);
+		DrawPicture(_spotifyClient.ActiveTrackImage, &_trackImageRect);
 	}
 	else
 	{
 		// Error getting image, just draw black
 		ForeColor(blackColor);
-		PaintRect(&pictRect);
+		PaintRect(&_trackImageRect);
 	}
 }
 
 void DrawTrackName()
 {
 	Rect trackRect;
-	MacSetRect(&trackRect, 10, 264, 130, 290);
+	MacSetRect(&trackRect, 10, 262, 130, 290);
 	EraseRect(&trackRect);
 
 	short length;
@@ -546,6 +574,9 @@ void PopulateTrackList(JsonValue& root)
 	ShowDialogItem(_dialog, kPlayerArtistLabel);
 	ShowDialogItem(_dialog, kPlayerTrackList);
 	ShowControl((**_trackList).vScroll);
+	
+	EraseRect(&(**_trackList).rView);
+	EraseRect(&_trackImageRect);
 
 	LSetDrawingMode(false, _trackList);
 
@@ -591,7 +622,7 @@ void PopulateTrackList(JsonValue& root)
 	if ((**_trackList).vScroll != NULL)
 		InvalRect(&(**(**_trackList).vScroll).contrlRect);
 
-	LUpdate(_dialog->visRgn, _trackList);
+	UpdateDialog(_dialog, _dialog->visRgn);
 }
 
 Track GetTrackObject(JsonValue& track)
@@ -751,6 +782,8 @@ void InitPlayer(DialogPtr dialog)
 	WaitCursor();
 	Microseconds(&_lastPollTime);
 
+	MacSetRect(&_trackImageRect, 127, 0, 377, 250);
+
 	_currentTrack.uri = "";
 	_playerState.isPlaying = false;
 
@@ -817,7 +850,7 @@ void GetDevices()
 
 void NoDevicesError()
 {
-	_spotifyClient.HandleError("No Spotify Connect devices found.\rPlease enable a device then refresh via the Devices menu.");
+	_spotifyClient.HandleError("No Spotify Connect devices found.\rPlease enable a device then refresh via Devices menu.");
 }
 
 void GetPlaylists(DialogPtr dialog)
@@ -853,12 +886,17 @@ void PollPlayerState()
 
 	double diffMs = (Util::MicrosecondToDouble(&now) - Util::MicrosecondToDouble(&_lastPollTime)) / 1000;
 
-	if (diffMs > mPollFrequencyMs)
+	if (diffMs > mPollFrequencyMs && !_pausePoll)
 	{
 		_lastPollTime = now;
 		_spotifyClient.GetPlayerState(
 			[=](JsonValue& root)
 			{
+				if (_pausePoll)
+				{
+					return;
+				}
+
 				bool isPlaying = root("is_playing").getTag() == JSON_TRUE;
 
 				if (isPlaying != _playerState.isPlaying)
@@ -908,11 +946,9 @@ void TogglePlayButtonIcon()
 
 void HandleUpdate(EventRecord *eventPtr)
 {
-	WindowPtr windowPtr = (WindowPtr)eventPtr->message;
-
-	if (windowPtr == FrontWindow())
+	if (_dialog == FrontWindow())
 	{
-		BeginUpdate(windowPtr);
+		BeginUpdate(_dialog);
 
 		if (_navList != 0)
 		{
@@ -932,8 +968,8 @@ void HandleUpdate(EventRecord *eventPtr)
 		}
 
 		DrawTrackName();
-		UpdateDialog(windowPtr, windowPtr->visRgn);
-		EndUpdate(windowPtr);
+		UpdateDialog(_dialog, _dialog->visRgn);
+		EndUpdate(_dialog);
 	}
 }
 
