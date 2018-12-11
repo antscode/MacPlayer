@@ -174,7 +174,7 @@ void SpotifyClient::GetPlayerState(function<void(JsonValue&)> onComplete)
 {
 	Get(
 		"https://api.spotify.com/v1/me/player",
-		true,
+		false,
 		onComplete);
 }
 
@@ -191,6 +191,15 @@ void SpotifyClient::Pause(function<void(JsonValue&)> onComplete)
 {
 	Put(
 		"https://api.spotify.com/v1/me/player/pause",
+		false,
+		"",
+		onComplete);
+}
+
+void SpotifyClient::SetVolume(int volumePercent, function<void(JsonValue&)> onComplete)
+{
+	Put(
+		"https://api.spotify.com/v1/me/player/volume?volume_percent=" + to_string(volumePercent),
 		false,
 		"",
 		onComplete);

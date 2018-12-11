@@ -37,6 +37,7 @@ class SpotifyClient
 		void GetPlayerState(function<void(JsonValue&)> onComplete);
 		void Play(function<void(JsonValue&)> onComplete);
 		void Pause(function<void(JsonValue&)> onComplete);
+		void SetVolume(int volumePercent, function<void(JsonValue&)> onComplete);
 		void HandleError(const string& errorMsg);
 
 	private:

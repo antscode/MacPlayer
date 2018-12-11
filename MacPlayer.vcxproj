@@ -107,8 +107,13 @@ xcopy *.APPL "C:\Users\AnthonySuper\OneDrive\Documents\Personal\Mac\Apps\Basilis
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="base64.h" />
-    <ClInclude Include="DarkListDef.h" />
-    <ClInclude Include="DarkScrollbarDef.h" />
+    <ClInclude Include="CDEF\colorCDEF.h" />
+    <ClInclude Include="CDEF\DarkListDef.h" />
+    <ClInclude Include="CDEF\DarkScrollbarDef.h" />
+    <ClInclude Include="CDEF\DarkSliderDef.h" />
+    <ClInclude Include="CDEF\grayCDEF.h" />
+    <ClInclude Include="CDEF\miscCDEF.h" />
+    <ClInclude Include="CDEF\qdCDEF.h" />
     <ClInclude Include="Keys.h" />
     <ClInclude Include="MacPlayer.h" />
     <ClInclude Include="Prefs.h" />
@@ -117,8 +122,13 @@ xcopy *.APPL "C:\Users\AnthonySuper\OneDrive\Documents\Personal\Mac\Apps\Basilis
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="base64.cpp" />
-    <ClCompile Include="DarkListDef.cpp" />
-    <ClCompile Include="DarkScrollbarDef.cpp" />
+    <ClCompile Include="CDEF\colorCDEF.cpp" />
+    <ClCompile Include="CDEF\DarkListDef.cpp" />
+    <ClCompile Include="CDEF\DarkScrollbarDef.cpp" />
+    <ClCompile Include="CDEF\DarkSliderDef.cpp" />
+    <ClCompile Include="CDEF\grayCDEF.cpp" />
+    <ClCompile Include="CDEF\miscCDEF.cpp" />
+    <ClCompile Include="CDEF\qdCDEF.cpp" />
     <ClCompile Include="Keys.cpp" />
     <ClCompile Include="MacPlayer.cpp" />
     <ClCompile Include="Prefs.cpp" />

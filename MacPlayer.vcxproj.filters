@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="base64.cpp" />
+    <ClCompile Include="Keys.cpp" />
+    <ClCompile Include="MacPlayer.cpp" />
+    <ClCompile Include="Prefs.cpp" />
+    <ClCompile Include="SpotifyClient.cpp" />
+    <ClCompile Include="Util.cpp" />
+    <ClCompile Include="CDEF\DarkListDef.cpp">
+      <Filter>CDEF</Filter>
+    </ClCompile>
+    <ClCompile Include="CDEF\DarkScrollbarDef.cpp">
+      <Filter>CDEF</Filter>
+    </ClCompile>
+    <ClCompile Include="CDEF\DarkSliderDef.cpp">
+      <Filter>CDEF</Filter>
+    </ClCompile>
+    <ClCompile Include="CDEF\colorCDEF.cpp">
+      <Filter>CDEF</Filter>
+    </ClCompile>
+    <ClCompile Include="CDEF\grayCDEF.cpp">
+      <Filter>CDEF</Filter>
+    </ClCompile>
+    <ClCompile Include="CDEF\miscCDEF.cpp">
+      <Filter>CDEF</Filter>
+    </ClCompile>
+    <ClCompile Include="CDEF\qdCDEF.cpp">
+      <Filter>CDEF</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="base64.h" />
+    <ClInclude Include="Keys.h" />
+    <ClInclude Include="MacPlayer.h" />
+    <ClInclude Include="Prefs.h" />
+    <ClInclude Include="SpotifyClient.h" />
+    <ClInclude Include="Util.h" />
+    <ClInclude Include="CDEF\colorCDEF.h">
+      <Filter>CDEF</Filter>
+    </ClInclude>
+    <ClInclude Include="CDEF\DarkListDef.h">
+      <Filter>CDEF</Filter>
+    </ClInclude>
+    <ClInclude Include="CDEF\DarkScrollbarDef.h">
+      <Filter>CDEF</Filter>
+    </ClInclude>
+    <ClInclude Include="CDEF\DarkSliderDef.h">
+      <Filter>CDEF</Filter>
+    </ClInclude>
+    <ClInclude Include="CDEF\grayCDEF.h">
+      <Filter>CDEF</Filter>
+    </ClInclude>
+    <ClInclude Include="CDEF\miscCDEF.h">
+      <Filter>CDEF</Filter>
+    </ClInclude>
+    <ClInclude Include="CDEF\qdCDEF.h">
+      <Filter>CDEF</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
+    <None Include="MacAuth.r" />
+    <None Include="macplayer-logo.ai" />
+    <None Include="MacPlayer.psd" />
+    <None Include="README.md" />
+    <None Include="resources.r" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CDEF">
+      <UniqueIdentifier>{337a4241-7cc5-4e39-9188-5e40339c3b42}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -266,7 +266,7 @@ void HandleInContent(EventRecord *eventPtr)
 				break;
 
 			case Player:
-				HandlePlayerContent(item);
+				HandlePlayerContent(eventPtr, item);
 				break;
 		}
 	}
@@ -295,7 +295,7 @@ void HandleLoginContent(short item)
 	}
 }
 
-void HandlePlayerContent(short item)
+void HandlePlayerContent(EventRecord *eventPtr, short item)
 {
 	Point pt;
 
@@ -372,6 +372,7 @@ void HandlePlayerContent(short item)
 		{
 			if (_activeDevice)
 			{
+				TrackChanging();
 				_spotifyClient.PreviousTrack(
 					[=](JsonValue& root)
 					{
@@ -389,6 +390,7 @@ void HandlePlayerContent(short item)
 		{
 			if (_activeDevice)
 			{
+				TrackChanging();
 				_spotifyClient.NextTrack(
 					[=](JsonValue& root)
 					{
@@ -401,7 +403,28 @@ void HandlePlayerContent(short item)
 			}
 			break;
 		}
-		break;
+
+		case kPlayerVolumeControl:
+		{
+			pt = eventPtr->where;
+			GlobalToLocal(&pt);
+			ControlHandle cHdl;
+			if (FindControl(pt, _dialog, &cHdl) > 0)
+			{
+				if (TrackControl(cHdl, pt, nil) > 0)
+				{
+					_currentVolume = GetControlValue(cHdl);
+					_pausePoll = true;
+					_spotifyClient.SetVolume(_currentVolume,
+						[](JsonValue& root)
+						{
+							_pausePoll = false;
+						});
+				}
+			}
+
+			break;
+		}
 	}
 }
 
@@ -481,11 +504,6 @@ void DrawPlaceholderImage()
 
 void TrackChanging()
 {
-	// Temporary state while we don't yet know the next track
-	_currentTrack.name = "";
-	_currentTrack.artist = "";
-	DrawTrackName();
-
 	if (_viewNowPlaying)
 	{
 		DrawPlaceholderImage();
@@ -671,6 +689,7 @@ void ModeInit(DialogPtr dialog)
 	_uiState = Init;
 
 	MacSetPort(dialog);
+	EraseRgn(dialog->visRgn);
 	ForeColor(whiteColor);
 
 	ShortenDITL(dialog, CountDITL(dialog));
@@ -686,6 +705,7 @@ void ModeLogin(DialogPtr dialog)
 	_uiState = Login;
 
 	MacSetPort(dialog);
+	ForeColor(whiteColor);
 
 	ShortenDITL(dialog, CountDITL(dialog));
 	Handle ditl = GetResource('DITL', kPlayerLoginDITL);
@@ -704,6 +724,7 @@ void ModePlayer(DialogPtr dialog)
 	_uiState = Player;
 
 	MacSetPort(dialog);
+	EraseRgn(dialog->visRgn);
 
 	ShortenDITL(dialog, CountDITL(dialog));
 	Handle ditl = GetResource('DITL', kPlayerMainDITL);
@@ -840,17 +861,12 @@ void GetDevices()
 			SetMenuItemText(deviceMenu, itemCount, "\pRefresh...");
 
 			MacDrawMenuBar();
-
-			if (itemCount == 1)
-			{
-				NoDevicesError();
-			}
 		});
 }
 
 void NoDevicesError()
 {
-	_spotifyClient.HandleError("No Spotify Connect devices found.\rPlease enable a device then refresh via Devices menu.");
+	_spotifyClient.HandleError("No Spotify Connect devices found.\rPlease enable a device then refresh via the Devices menu.");
 }
 
 void GetPlaylists(DialogPtr dialog)
@@ -905,15 +921,39 @@ void PollPlayerState()
 					TogglePlayButtonIcon();
 				}
 
+				JsonValue device = root("device");
+				if (device.getTag() == JSON_OBJECT)
+				{
+					JsonValue volumePercent = device("volume_percent");
+
+					if (volumePercent.getTag() == JSON_NUMBER)
+					{
+						int volume = volumePercent.toInt();
+						if (volume != _currentVolume)
+						{
+							DialogItemType type;
+							Handle item;
+							Rect box;
+							GetDialogItem(_dialog, kPlayerVolumeControl, &type, &item, &box);
+
+							ControlHandle volumeControl = (ControlHandle)item;
+							SetControlValue(volumeControl, volume);
+							_currentVolume = volume;
+						}
+					}
+				}
+
 				if (_viewNowPlaying)
 				{
-					if (root("item").getTag() == JSON_OBJECT)
-					{
-						JsonValue track = root("item");
+					JsonValue track = root("item");
 
-						if (track("uri").getTag() == JSON_STRING)
+					if (track.getTag() == JSON_OBJECT)
+					{
+						JsonValue uri = track("uri");
+
+						if (uri.getTag() == JSON_STRING)
 						{
-							string trackUri = track("uri").toString();
+							string trackUri = uri.toString();
 
 							if (trackUri != _currentTrack.uri)
 							{
@@ -990,7 +1030,11 @@ void InitCustomLDEF()
 	HLock(h);
 	*(ListDefProcPtr*)(*h + 6) = &DarkListDef;
 
-	Handle h2 = GetResource('CDEF', 1);
+	Handle h2 = GetResource('CDEF', 128);
 	HLock(h2);
-	*(ControlDefProcPtr*)(*h2 + 6) = &DarkScrollbarDef;
+	*(ControlDefProcPtr*)(*h2 + 6) = &DarkSliderDef;
+
+	Handle h3 = GetResource('CDEF', 1);
+	HLock(h3);
+	*(ControlDefProcPtr*)(*h3 + 6) = &DarkScrollbarDef;
 }

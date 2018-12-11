@@ -3,7 +3,7 @@
 #include <ToolUtils.h>
 #include <Resources.h>
 #include <string.h>
-#include "Util.h"
+#include "../Util.h"
 #include "DarkListDef.h"
 
 extern "C"

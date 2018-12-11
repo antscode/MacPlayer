@@ -3,8 +3,9 @@
 #include <vector>
 #include <MacWifi/MacWifiLib.h>
 #include "Prefs.h"
-#include "DarkListDef.h"
-#include "DarkScrollbarDef.h"
+#include "CDEF/DarkListDef.h"
+#include "CDEF/DarkScrollbarDef.h"
+#include "CDEF/DarkSliderDef.h"
 #include "SpotifyClient.h"
 
 const double mPollFrequencyMs = 5000;
@@ -33,7 +34,7 @@ enum UIElements
 {
 	kPlayerDialog = 128,
 	kPlayerMenubar = 128,
-	kPlayerLoginButton = 2,
+	kPlayerLoginButton = 3,
 	kPlayerPlaylistsLabel = 1,
 	kPlayerNavList = 2,
 	kPlayerTrackLabel = 3,
@@ -42,6 +43,7 @@ enum UIElements
 	kPlayerPlayButton = 6,
 	kPlayerPrevTrack = 7,
 	kPlayerNextTrack = 8,
+	kPlayerVolumeControl = 12,
 	kPlayerStartupDITL = 130,
 	kPlayerLoginDITL = 128,
 	kPlayerMainDITL = 129,
@@ -110,7 +112,7 @@ void ModePlayer(DialogPtr dialog);
 void HandleMenuChoice(long menuChoice);
 void ShowAboutBox();
 void WaitCursor();
-void HandlePlayerContent(short item);
+void HandlePlayerContent(EventRecord *eventPtr, short item);
 void GetRecentTracks();
 void GetPlaylists(DialogPtr dialog);
 void GetPlaylistTracks(const string& uri, const string& playlistId);
@@ -140,6 +142,7 @@ string _currentContext;
 bool _activeDevice;
 Rect _trackImageRect;
 bool _pausePoll;
+int _currentVolume;
 
 ListHandle _navList = 0, _trackList = 0;
 ListHandle CreateList(

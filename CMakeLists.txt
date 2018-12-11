@@ -11,8 +11,13 @@ add_application(MacPlayer
 	Keys.cpp
 	MacAuth.r
 	base64.cpp
-	DarkListDef.cpp
-	DarkScrollbarDef.cpp
+	CDEF/DarkListDef.cpp
+	CDEF/DarkScrollbarDef.cpp
+	CDEF/DarkSliderDef.cpp
+	CDEF/colorCDEF.cpp
+	CDEF/grayCDEF.cpp
+	CDEF/miscCDEF.cpp
+	CDEF/qdCDEF.cpp
 	SpotifyClient.cpp
 
 	CREATOR "MPLY"

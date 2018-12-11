@@ -122,6 +122,10 @@ data 'LDEF' (128) {
     $"2F3A 0004 4E75 0000 0000"
 }; 
 
+data 'CDEF' (128) {
+    $"2F3A 0004 4E75 0000 0000"
+}; 
+
 /* Nasty hack to replace all scroll bars with our own definition - but it works! */
 data 'CDEF' (1) {
     $"2F3A 0004 4E75 0000 0000"
@@ -129,14 +133,25 @@ data 'CDEF' (1) {
 
 resource 'DITL' (128, purgeable) {
 	{ 
+		/* Intro Label */
+		{30, 158, 30+15, 158+190},
+		StaticText { disabled, "To continue, login to Spotify:" };
+
 		/* Spotify Logo */
 		{ 60, 183, 60+41, 183+138 },
 		Picture { enabled, 136 };
 
 		/* Login */
-		{ 120, 217, 120+20, 217+70},
+		{ 110, 217, 110+20, 217+70},
 		Button { enabled, "Login" };
 	}
+};
+
+resource 'CNTL' (128, purgeable) {
+    { 266, 415, 281, 495 },
+    0, visible, 100, 0, 
+    16*128, 						
+    0, ""
 };
 
 resource 'DITL' (129, purgeable) {
@@ -180,6 +195,14 @@ resource 'DITL' (129, purgeable) {
 		/* Repeat */
 		{ 266, 335, 282, 351 },
 		Icon { enabled, 132 };
+
+		/* Volume Icon */
+		{ 266, 395, 282, 411 },
+		Icon { enabled, 133 };
+
+		/* Volume Slider */
+		{ 266, 420, 281, 495 },
+		Control {enabled, 128 };
 	}
 };
 
